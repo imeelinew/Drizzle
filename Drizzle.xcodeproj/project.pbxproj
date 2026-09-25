@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000003 /* Sparkle */; };
+		A10000000000000000000004 /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* NOTICE */; };
+		A10000000000000000000006 /* Sparkle-LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* Sparkle-LICENSE */; };
 		083279E54617649456B5E984 /* ProviderBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B194E3745E2C3E95856957B9 /* ProviderBrandIcon.swift */; };
 		0E3549EB1D448FF6F3A137B0 /* ProviderIcon-zai.svg in Resources */ = {isa = PBXBuildFile; fileRef = 6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */; };
 		114426F4D0F5AE0EAF53AEF8 /* ProviderFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36BCCEB4227F188DBA0CCA5 /* ProviderFetch.swift */; };
@@ -40,6 +43,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000005 /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000007 /* Sparkle-LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD_PARTY_LICENSES/Sparkle-LICENSE"; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		030C07ED34AE40517DD5F5EF /* CodexGlue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexGlue.swift; sourceTree = "<group>"; };
 		037DB586397E04433226EAB2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		12248976C027919AD38F683B /* ProviderPace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPace.swift; sourceTree = "<group>"; };
@@ -73,6 +79,17 @@
 		FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */ = {isa = PBXFileReference; path = "ProviderIcon-openrouter.svg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		A10000000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
 		102A3916CC33EE93C6D3FBA1 /* Products */ = {
 			isa = PBXGroup;
@@ -85,6 +102,7 @@
 		44958E97B60BA10D8D6D42D1 /* Drizzle */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000009 /* Info.plist */,
 				6EF2DC5C1A428C5ABFA8DF87 /* AppDelegate.swift */,
 				037DB586397E04433226EAB2 /* Assets.xcassets */,
 				030C07ED34AE40517DD5F5EF /* CodexGlue.swift */,
@@ -129,6 +147,8 @@
 		E306A7483369CFAE0EAA83EE = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000005 /* NOTICE */,
+				A10000000000000000000007 /* Sparkle-LICENSE */,
 				1DB3042E408D8D08D7B3C4E1 /* Drizzle.icon */,
 				44958E97B60BA10D8D6D42D1 /* Drizzle */,
 				102A3916CC33EE93C6D3FBA1 /* Products */,
@@ -143,6 +163,7 @@
 			buildConfigurationList = F0F28A628F6F203D9988AFFC /* Build configuration list for PBXNativeTarget "Drizzle" */;
 			buildPhases = (
 				E54FB23094497D6BB46FF7FC /* Sources */,
+				A10000000000000000000008 /* Frameworks */,
 				38E39224A25F6595906D6807 /* Resources */,
 			);
 			buildRules = (
@@ -151,6 +172,7 @@
 			);
 			name = Drizzle;
 			packageProductDependencies = (
+				A10000000000000000000003 /* Sparkle */,
 			);
 			productName = Drizzle;
 			productReference = 25830DD33D6776A572F4FDEA /* Drizzle.app */;
@@ -180,6 +202,9 @@
 			);
 			mainGroup = E306A7483369CFAE0EAA83EE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 102A3916CC33EE93C6D3FBA1 /* Products */;
 			projectDirPath = "";
@@ -195,6 +220,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000004 /* NOTICE in Resources */,
+				A10000000000000000000006 /* Sparkle-LICENSE in Resources */,
 				4155E61EC553A630AC3AA415 /* Assets.xcassets in Resources */,
 				9E3AE2BFCAC3569C8998E244 /* Drizzle.icon in Resources */,
 				BCAAFEE7C38828F31AB55B6F /* Localizable.strings in Resources */,
@@ -275,7 +302,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -295,7 +321,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -341,7 +366,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -355,7 +379,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -369,20 +392,20 @@
 		C809DC38C97D3C6AD2BB9D23 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Drizzle;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleIconName = Drizzle;
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Drizzle/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.eli.Drizzle;
 				SDKROOT = macosx;
 			};
@@ -391,20 +414,20 @@
 		D002B74F2EF0AAA76CFAE3B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Drizzle;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleIconName = Drizzle;
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Drizzle/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.eli.Drizzle;
 				SDKROOT = macosx;
 			};
@@ -432,6 +455,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000003 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 16ACAAF17E6BE6591C88BE20 /* Project object */;
 }

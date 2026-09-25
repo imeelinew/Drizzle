@@ -8,30 +8,43 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_LANGUAGE: zh-Hans
 targets:
   Drizzle:
     type: application
     platform: macOS
     sources:
-      - Drizzle
+      - path: Drizzle
+        excludes:
+          - Info.plist
+      - path: Drizzle/Info.plist
+        buildPhase: none
+      - path: NOTICE
+        buildPhase: resources
+      - path: THIRD_PARTY_LICENSES/Sparkle-LICENSE
+        buildPhase: resources
       - path: Drizzle.icon
         type: folder
         buildPhase: resources
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
     settings:
       base:
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         PRODUCT_BUNDLE_IDENTIFIER: com.eli.Drizzle
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Drizzle/Info.plist
         DEVELOPMENT_LANGUAGE: zh-Hans
-        INFOPLIST_KEY_LSUIElement: YES
-        INFOPLIST_KEY_NSHumanReadableCopyright: ""
-        INFOPLIST_KEY_CFBundleIconName: Drizzle
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: Drizzle
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
 schemes:
   Drizzle:
     build:

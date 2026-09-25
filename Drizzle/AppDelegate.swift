@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 @MainActor
@@ -12,6 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var isMenuOpen = false
     private var settings: SettingsWindowController!
     private var refreshTask: Task<Void, Never>?
+    private lazy var updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         self.settings = SettingsWindowController(store: self.store)
@@ -95,6 +100,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.actionsSeparator = separator
         self.menu.addItem(separator)
         self.menu.addItem(self.actionItem("刷新", #selector(refreshAction)))
+        let updateItem = NSMenuItem(
+            title: "检查更新…",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: "")
+        updateItem.target = self.updaterController
+        updateItem.isEnabled = self.updaterController.updater.canCheckForUpdates
+        self.menu.addItem(updateItem)
         self.menu.addItem(self.actionItem("设置…", #selector(settingsAction)))
         self.menu.addItem(self.actionItem("关于 Drizzle", #selector(aboutAction)))
         self.menu.addItem(self.actionItem("退出", #selector(quitAction)))

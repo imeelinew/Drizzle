@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Drizzle 更新</title>
+    <link>https://github.com/imeelinew/Drizzle/releases</link>
+    <description>Drizzle 应用更新</description>
+  </channel>
+</rss>

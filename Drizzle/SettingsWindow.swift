@@ -72,19 +72,29 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         win.minSize = win.frame.size
         win.maxSize = win.frame.size
         win.center()
-        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        win.standardWindowButton(.zoomButton)?.isHidden = true
+        win.standardWindowButton(.miniaturizeButton)?.isEnabled = false
+        win.standardWindowButton(.zoomButton)?.isEnabled = false
         win.delegate = self
         self.window = win
+        self.installCommandWCloseView(on: win)
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
     }
 
+    func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool { false }
+
     func windowWillClose(_ notification: Notification) {
         (notification.object as? NSWindow)?.delegate = nil
         self.window = nil
         NSApp.setActivationPolicy(.accessory)
+    }
+
+    private func installCommandWCloseView(on window: NSWindow) {
+        guard let content = window.contentView else { return }
+        let view = CommandWCloseView(frame: content.bounds)
+        view.autoresizingMask = [.width, .height]
+        content.addSubview(view)
     }
 }
 
@@ -97,21 +107,85 @@ private final class SettingsWindow: NSWindow {
 struct SettingsRootView: View {
     @Bindable var store: DrizzleStore
     @State private var page: SettingsPage = .codex
+    @State private var backStack: [SettingsPage] = []
+    @State private var forwardStack: [SettingsPage] = []
+    @State private var applyingHistory = false
 
     var body: some View {
         NavigationSplitView {
-            SettingsSidebar(selected: self.$page)
-                .navigationSplitViewColumnWidth(
-                    min: SettingsWindowMetrics.sidebarWidth,
-                    ideal: SettingsWindowMetrics.sidebarWidth,
-                    max: SettingsWindowMetrics.sidebarWidth)
+            List(selection: self.$page) {
+                ForEach(SettingsPage.Group.allCases, id: \.self) { group in
+                    Section(group.rawValue) {
+                        ForEach(SettingsPage.allCases.filter { $0.group == group }) { page in
+                            Label {
+                                Text(page.title)
+                            } icon: {
+                                self.sidebarIcon(page.icon)
+                            }
+                            .listItemTint(.preferred(Color.secondary))
+                            .tag(page)
+                        }
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .background(SourceListSelection())
+            .navigationSplitViewColumnWidth(
+                min: SettingsWindowMetrics.sidebarWidth,
+                ideal: SettingsWindowMetrics.sidebarWidth,
+                max: SettingsWindowMetrics.sidebarWidth)
         } detail: {
             NavigationStack {
                 self.detail
+                    .navigationTitle(self.page.title)
             }
-            .navigationTitle(self.page.title)
         }
         .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                ControlGroup {
+                    Button(action: self.goBack) {
+                        Image(systemName: "chevron.backward")
+                    }
+                    .disabled(self.backStack.isEmpty)
+                    Button(action: self.goForward) {
+                        Image(systemName: "chevron.forward")
+                    }
+                    .disabled(self.forwardStack.isEmpty)
+                }
+                .controlGroupStyle(.navigation)
+            }
+        }
+        .onChange(of: self.page) { previous, _ in
+            guard !self.applyingHistory else {
+                self.applyingHistory = false
+                return
+            }
+            self.backStack.append(previous)
+            self.forwardStack.removeAll()
+        }
+    }
+
+    private func goBack() {
+        guard let page = self.backStack.popLast() else { return }
+        self.forwardStack.append(self.page)
+        self.applyingHistory = true
+        self.page = page
+    }
+
+    private func goForward() {
+        guard let page = self.forwardStack.popLast() else { return }
+        self.backStack.append(self.page)
+        self.applyingHistory = true
+        self.page = page
+    }
+
+    private func sidebarIcon(_ image: NSImage?) -> some View {
+        Image(nsImage: image ?? NSImage())
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 16, height: 16)
     }
 
     @ViewBuilder
@@ -322,198 +396,60 @@ struct ProviderEnabledRow: View {
     }
 }
 
-struct SettingsSidebar: NSViewRepresentable {
-    @Binding var selected: SettingsPage
+private struct SourceListSelection: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { SourceListSelectionView() }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(selected: self.$selected)
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? SourceListSelectionView)?.apply()
+    }
+}
+
+private final class SourceListSelectionView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        self.apply()
     }
 
-    func makeNSView(context: Context) -> NSScrollView {
-        context.coordinator.makeScrollView()
-    }
-
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        context.coordinator.selected = self.$selected
-        context.coordinator.syncSelection()
-    }
-
-    @MainActor
-    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-        var selected: Binding<SettingsPage>
-        private weak var tableView: NSTableView?
-        private let items: [Item]
-        private var isSyncing = false
-
-        init(selected: Binding<SettingsPage>) {
-            self.selected = selected
-            var rows: [Item] = []
-            for group in SettingsPage.Group.allCases {
-                rows.append(.header(group.rawValue))
-                rows.append(contentsOf: SettingsPage.allCases.filter { $0.group == group }.map(Item.page))
-            }
-            self.items = rows
-        }
-
-        func makeScrollView() -> NSScrollView {
-            let scrollView = NSScrollView()
-            scrollView.drawsBackground = false
-            scrollView.borderType = .noBorder
-            scrollView.hasVerticalScroller = true
-            scrollView.autohidesScrollers = true
-            scrollView.automaticallyAdjustsContentInsets = false
-            scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-
-            let table = NSTableView()
+    func apply() {
+        DispatchQueue.main.async { [weak self] in
+            guard let table = self?.enclosingTable else { return }
             table.style = .sourceList
-            table.selectionHighlightStyle = .regular
-            table.headerView = nil
-            table.backgroundColor = .clear
-            table.rowSizeStyle = .custom
-            table.intercellSpacing = NSSize(width: 0, height: 2)
-            table.floatsGroupRows = false
-            table.allowsEmptySelection = false
-            table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
-            table.dataSource = self
-            table.delegate = self
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("sidebar"))
-            column.resizingMask = .autoresizingMask
-            table.addTableColumn(column)
-            scrollView.documentView = table
-            self.tableView = table
-            self.syncSelection()
-            return scrollView
         }
+    }
 
-        func numberOfRows(in tableView: NSTableView) -> Int { self.items.count }
-
-        func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
-            if case .header = self.items[row] { return true }
-            return false
+    private var enclosingTable: NSTableView? {
+        if let table = self.enclosingScrollView?.documentView as? NSTableView { return table }
+        var ancestor: NSView? = self
+        while let current = ancestor {
+            if let table = current as? NSTableView { return table }
+            if let table = current.enclosingScrollView?.documentView as? NSTableView { return table }
+            ancestor = current.superview
         }
-
-        func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-            if case .page = self.items[row] { return true }
-            return false
-        }
-
-        func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-            if case .header = self.items[row] { return 24 }
-            return 30
-        }
-
-        func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-            SidebarRowView()
-        }
-
-        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            switch self.items[row] {
-            case let .header(title):
-                let cell = tableView.makeView(withIdentifier: SidebarHeaderCell.reuseID, owner: self) as? SidebarHeaderCell
-                    ?? SidebarHeaderCell()
-                cell.configure(title: title)
-                return cell
-            case let .page(page):
-                let cell = tableView.makeView(withIdentifier: SidebarPageCell.reuseID, owner: self) as? SidebarPageCell
-                    ?? SidebarPageCell()
-                cell.configure(title: page.title, icon: page.icon)
-                return cell
-            }
-        }
-
-        func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !self.isSyncing, let table = notification.object as? NSTableView,
-                  self.items.indices.contains(table.selectedRow),
-                  case let .page(page) = self.items[table.selectedRow]
-            else { return }
-            self.selected.wrappedValue = page
-        }
-
-        func syncSelection() {
-            guard let tableView else { return }
-            guard let row = self.items.firstIndex(where: {
-                if case let .page(page) = $0 { return page == self.selected.wrappedValue }
-                return false
-            }) else { return }
-            if tableView.selectedRow == row { return }
-            self.isSyncing = true
-            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-            self.isSyncing = false
-        }
-
-        enum Item {
-            case header(String)
-            case page(SettingsPage)
+        return self.window?.contentView?.tables.min { lhs, rhs in
+            lhs.convert(lhs.bounds, to: nil).minX < rhs.convert(rhs.bounds, to: nil).minX
         }
     }
 }
 
-private final class SidebarRowView: NSTableRowView {
-    override var isEmphasized: Bool {
-        get { false }
-        set { super.isEmphasized = false }
+private extension NSView {
+    var tables: [NSTableView] {
+        var found: [NSTableView] = []
+        if let table = self as? NSTableView { found.append(table) }
+        for subview in self.subviews { found.append(contentsOf: subview.tables) }
+        return found
     }
 }
 
-private final class SidebarHeaderCell: NSTableCellView {
-    static let reuseID = NSUserInterfaceItemIdentifier("SettingsSidebarHeaderCell")
-    private let titleField = NSTextField(labelWithString: "")
+private final class CommandWCloseView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        self.identifier = Self.reuseID
-        self.titleField.font = .systemFont(ofSize: 11, weight: .semibold)
-        self.titleField.textColor = .secondaryLabelColor
-        self.titleField.translatesAutoresizingMaskIntoConstraints = false
-        self.addSubview(self.titleField)
-        NSLayoutConstraint.activate([
-            self.titleField.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 13),
-            self.titleField.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -9),
-            self.titleField.bottomAnchor.constraint(equalTo: self.bottomAnchor, constant: -4),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { nil }
-
-    func configure(title: String) {
-        self.titleField.stringValue = title
-    }
-}
-
-private final class SidebarPageCell: NSTableCellView {
-    static let reuseID = NSUserInterfaceItemIdentifier("SettingsSidebarPageCell")
-    private let iconView = NSImageView()
-    private let titleField = NSTextField(labelWithString: "")
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        self.identifier = Self.reuseID
-        self.iconView.imageScaling = .scaleProportionallyDown
-        self.iconView.translatesAutoresizingMaskIntoConstraints = false
-        self.titleField.font = .systemFont(ofSize: NSFont.systemFontSize)
-        self.titleField.lineBreakMode = .byTruncatingTail
-        self.titleField.translatesAutoresizingMaskIntoConstraints = false
-        self.addSubview(self.iconView)
-        self.addSubview(self.titleField)
-        NSLayoutConstraint.activate([
-            self.iconView.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 3),
-            self.iconView.centerYAnchor.constraint(equalTo: self.centerYAnchor),
-            self.iconView.widthAnchor.constraint(equalToConstant: 18),
-            self.iconView.heightAnchor.constraint(equalToConstant: 18),
-            self.titleField.leadingAnchor.constraint(equalTo: self.iconView.trailingAnchor, constant: 8),
-            self.titleField.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -14),
-            self.titleField.centerYAnchor.constraint(equalTo: self.centerYAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { nil }
-
-    func configure(title: String, icon: NSImage?) {
-        self.titleField.stringValue = title
-        self.iconView.image = icon
-        self.iconView.contentTintColor = .labelColor
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard modifiers == .command, event.keyCode == 13 else {
+            return super.performKeyEquivalent(with: event)
+        }
+        self.window?.performClose(nil)
+        return true
     }
 }
 

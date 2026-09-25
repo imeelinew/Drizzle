@@ -73,7 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showsIcons: true,
             iconProvider: { ProviderBrandIcon.image(for: $0) ?? NSImage() },
             weeklyRemainingProvider: { [weak self] provider in
-                self?.store.windows(for: provider).last?.remainingPercent
+                if provider == .cursor {
+                    return self?.store.cursorAutoWindow?.remainingPercent
+                }
+                return self?.store.windows(for: provider).last?.remainingPercent
             },
             onSelect: { [weak self] selection in
                 guard let self else { return }
@@ -124,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let card = ProviderQuotaCard(
                 provider: provider,
                 windows: result?.windows ?? [],
+                windowTitles: result?.windowTitles ?? [],
                 plan: result?.plan,
                 message: result?.message,
                 updatedAt: result?.updatedAt,

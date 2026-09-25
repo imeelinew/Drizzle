@@ -4,6 +4,7 @@ import SwiftUI
 struct ProviderQuotaCard: View {
     let provider: UsageProvider
     let windows: [RateWindow]
+    let windowTitles: [String]
     let plan: String?
     let message: String?
     let updatedAt: Date?
@@ -89,7 +90,9 @@ struct ProviderQuotaCard: View {
 
     private var metrics: [UsageMenuCardView.Model.Metric] {
         self.windows.enumerated().map { index, window in
-            let title = index == 0 ? L(self.metadata.sessionLabel) : L(self.metadata.weeklyLabel)
+            let title = self.windowTitles.indices.contains(index)
+                ? L(self.windowTitles[index])
+                : index == 0 ? L(self.metadata.sessionLabel) : L(self.metadata.weeklyLabel)
             let pace = Self.paceDetail(provider: self.provider, window: window, isSession: index == 0)
             return UsageMenuCardView.Model.Metric(
                 id: index == 0 ? "primary" : "secondary",

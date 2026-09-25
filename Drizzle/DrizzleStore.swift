@@ -104,6 +104,14 @@ final class DrizzleStore {
         self.results[provider]?.windows ?? []
     }
 
+    var cursorAutoWindow: RateWindow? {
+        guard let result = self.results[.cursor],
+              let index = result.windowTitles.firstIndex(of: "Cursor"),
+              result.windows.indices.contains(index)
+        else { return nil }
+        return result.windows[index]
+    }
+
     func saveSecrets() {
         UserDefaults.standard.set(self.openRouterKey, forKey: DrizzleSecrets.openRouterKeyName)
         UserDefaults.standard.set(self.zaiKey, forKey: DrizzleSecrets.zaiKeyName)
@@ -136,7 +144,8 @@ final class DrizzleStore {
         let provider = self.iconProvider
         let windows = self.windows(for: provider)
         let session = windows.first.map { 100 - $0.usedPercent }
-        let weekly = windows.dropFirst().first.map { 100 - $0.usedPercent }
+        let weekly = (provider == .cursor ? self.cursorAutoWindow : windows.dropFirst().first)
+            .map { 100 - $0.usedPercent }
         return (session, weekly ?? (windows.count == 1 ? nil : weekly))
     }
 

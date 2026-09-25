@@ -1,9 +1,11 @@
 import Foundation
+import SQLite3
 
 struct ProviderFetchResult {
     var provider: UsageProvider
     var plan: String?
     var windows: [RateWindow]
+    var windowTitles: [String] = []
     var message: String?
     var updatedAt: Date
     var balance: String? = nil
@@ -103,11 +105,8 @@ enum ProviderFetch {
     }
 
     static func cursor() async -> ProviderFetchResult {
-        let cookie = DrizzleSecrets.cursorCookie.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cookie.isEmpty else {
-            return self.failure(.cursor, "在设置里粘贴 Cursor 的 Cookie")
-        }
         do {
+            let cookie = try CursorCredential.cookieHeader(manual: DrizzleSecrets.cursorCookie)
             var request = URLRequest(url: URL(string: "https://cursor.com/api/usage-summary")!)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.setValue(cookie, forHTTPHeaderField: "Cookie")
@@ -115,27 +114,58 @@ enum ProviderFetch {
             let individual = json["individualUsage"] as? [String: Any]
             let plan = individual?["plan"] as? [String: Any]
             let overall = individual?["overall"] as? [String: Any]
+            let team = json["teamUsage"] as? [String: Any]
+            let pooled = team?["pooled"] as? [String: Any]
+            let cycleStart = self.date(json["billingCycleStart"])
             let reset = self.date(json["billingCycleEnd"])
+            let cycleMinutes = self.windowMinutes(start: cycleStart, end: reset)
             let auto = self.percent(plan?["autoPercentUsed"])
             let api = self.percent(plan?["apiPercentUsed"])
+            let splitPercent: Double?
+            if let auto, let api {
+                splitPercent = (auto + api) / 2
+            } else {
+                splitPercent = auto ?? api
+            }
             let percent: Double? = self.percent(plan?["totalPercentUsed"])
+                ?? splitPercent
                 ?? self.ratio(used: plan?["used"], limit: plan?["limit"])
                 ?? self.ratio(used: overall?["used"], limit: overall?["limit"])
-                ?? {
-                    if let auto, let api { return (auto + api) / 2 }
-                    return auto ?? api
-                }()
+                ?? self.ratio(used: pooled?["used"], limit: pooled?["limit"])
             guard let percent else {
                 return self.failure(.cursor, "Cursor 没有返回套餐额度")
             }
+            var windows = [RateWindow(
+                usedPercent: min(100, max(0, percent)),
+                windowMinutes: cycleMinutes,
+                resetsAt: reset,
+                resetDescription: nil)]
+            var titles = ["Total"]
+            if let auto {
+                windows.append(RateWindow(
+                    usedPercent: min(100, max(0, auto)),
+                    windowMinutes: cycleMinutes,
+                    resetsAt: reset,
+                    resetDescription: nil))
+                titles.append("Cursor")
+            }
+            if let api {
+                windows.append(RateWindow(
+                    usedPercent: min(100, max(0, api)),
+                    windowMinutes: cycleMinutes,
+                    resetsAt: reset,
+                    resetDescription: nil))
+                titles.append("Third Party")
+            }
+            if let sand = await self.cursorSandWindow(cookie: cookie) {
+                windows.append(sand)
+                titles.append("Grok Bot")
+            }
             return ProviderFetchResult(
                 provider: .cursor,
-                plan: (json["membershipType"] as? String)?.capitalized,
-                windows: [RateWindow(
-                    usedPercent: min(100, max(0, percent)),
-                    windowMinutes: 30 * 24 * 60,
-                    resetsAt: reset,
-                    resetDescription: nil)],
+                plan: self.cursorPlan(json["membershipType"] as? String),
+                windows: windows,
+                windowTitles: titles,
                 message: nil,
                 updatedAt: .now)
         } catch {
@@ -228,6 +258,56 @@ enum ProviderFetch {
     private static func ratio(used: Any?, limit: Any?) -> Double? {
         guard let used = self.percent(used), let limit = self.percent(limit), limit > 0 else { return nil }
         return used / limit * 100
+    }
+
+    private static func windowMinutes(start: Date?, end: Date?) -> Int? {
+        guard let start, let end else { return nil }
+        let minutes = Int((end.timeIntervalSince(start) / 60).rounded())
+        return minutes > 0 ? minutes : nil
+    }
+
+    private static func cursorPlan(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let name: String = switch raw.lowercased() {
+        case "free": "Free"
+        case "free_trial": "Pro Trial"
+        case "hobby": "Hobby"
+        case "pro", "pro_student": "Pro"
+        case "pro_plus": "Pro+"
+        case "team": "Team"
+        case "enterprise": "Enterprise"
+        case "ultra": "Ultra"
+        default: raw.capitalized
+        }
+        return "Cursor \(name)"
+    }
+
+    private static func cursorSandWindow(cookie: String) async -> RateWindow? {
+        var request = URLRequest(url: URL(string: "https://cursor.com/api/dashboard/get-sand-usage-status")!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 5
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://cursor.com", forHTTPHeaderField: "Origin")
+        request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        request.httpBody = Data("{}".utf8)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        let hasLimit = (json["includedLimitZero"] as? Bool).map { !$0 }
+            ?? (json["hasNonZeroIncludedLimit"] as? Bool)
+        let trialEnd = self.date(json["sandTrialExpiresAt"])
+        let hasTrial = hasLimit != true && trialEnd.map { $0 > .now } == true
+        guard hasLimit == true || hasTrial,
+              let percent = self.percent(json["usagePercent"])
+        else { return nil }
+        let reset = hasTrial ? nil : self.date(json["nextResetTimestampUtc"])
+        return RateWindow(
+            usedPercent: min(100, max(0, percent)),
+            windowMinutes: self.windowMinutes(start: self.date(json["currentPeriodStart"]), end: reset),
+            resetsAt: reset,
+            resetDescription: nil)
     }
 
     private static func zaiWindow(_ raw: [String: Any]) -> RateWindow? {
@@ -339,5 +419,141 @@ enum ProviderFetchError: LocalizedError {
         case let .http(status): "请求失败（HTTP \(status)）"
         case let .missing(message): message
         }
+    }
+}
+
+private enum CursorCredential {
+    private static let databasePath = NSHomeDirectory()
+        + "/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+    private static let headerPatterns = [
+        #"(?i)-H\s*'Cookie:\s*([^']+)'"#,
+        #"(?i)-H\s*\"Cookie:\s*([^\"]+)\""#,
+        #"(?i)\bcookie:\s*'([^']+)'"#,
+        #"(?i)\bcookie:\s*\"([^\"]+)\""#,
+        #"(?i)\bcookie:\s*([^\r\n]+)"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s*'([^']+)'"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s*\"([^\"]+)\""#,
+        #"(?i)(?:^|\s)-b([^\s=]+=[^\s]+)"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s+([^\s]+)"#,
+    ]
+
+    static func cookieHeader(manual: String) throws -> String {
+        if let header = self.normalize(manual) {
+            guard header.contains("=") else {
+                throw ProviderFetchError.missing("Cursor Cookie 格式无效")
+            }
+            return header
+        }
+        guard let token = self.loadAppToken() else {
+            throw ProviderFetchError.missing("找不到 Cursor 登录，请在 Cursor 登录或在设置里粘贴 Cookie")
+        }
+        return try self.cookieHeader(accessToken: token)
+    }
+
+    private static func normalize(_ raw: String) -> String? {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        for pattern in self.headerPatterns {
+            guard let expression = try? NSRegularExpression(pattern: pattern),
+                  let match = expression.firstMatch(
+                      in: value,
+                      range: NSRange(value.startIndex..<value.endIndex, in: value)),
+                  let range = Range(match.range(at: 1), in: value)
+            else { continue }
+            value = String(value[range])
+            break
+        }
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.lowercased().hasPrefix("cookie:") {
+            value = String(value.dropFirst("cookie:".count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if value.count >= 2,
+           (value.hasPrefix("\"") && value.hasSuffix("\"")
+               || value.hasPrefix("'") && value.hasSuffix("'"))
+        {
+            value = String(value.dropFirst().dropLast())
+        }
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    private static func loadAppToken() -> String? {
+        guard FileManager.default.fileExists(atPath: self.databasePath) else { return nil }
+        if let token = self.readToken(immutable: false) { return token }
+        guard !FileManager.default.fileExists(atPath: self.databasePath + "-wal"),
+              !FileManager.default.fileExists(atPath: self.databasePath + "-shm")
+        else { return nil }
+        return self.readToken(immutable: true)
+    }
+
+    private static func readToken(immutable: Bool) -> String? {
+        var database: OpaquePointer?
+        let url = URL(fileURLWithPath: self.databasePath)
+        let path = immutable ? url.absoluteString + "?immutable=1" : self.databasePath
+        let flags = immutable ? SQLITE_OPEN_READONLY | SQLITE_OPEN_URI : SQLITE_OPEN_READONLY
+        guard sqlite3_open_v2(path, &database, flags, nil) == SQLITE_OK else {
+            sqlite3_close(database)
+            return nil
+        }
+        defer { sqlite3_close(database) }
+        sqlite3_busy_timeout(database, 250)
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken' LIMIT 1",
+            -1,
+            &statement,
+            nil) == SQLITE_OK
+        else { return nil }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+        switch sqlite3_column_type(statement, 0) {
+        case SQLITE_TEXT:
+            guard let text = sqlite3_column_text(statement, 0) else { return nil }
+            return String(cString: text)
+        case SQLITE_BLOB:
+            guard let bytes = sqlite3_column_blob(statement, 0) else { return nil }
+            let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 0)))
+            if data.count.isMultiple(of: 2),
+               stride(from: 0, to: data.count, by: 2).allSatisfy({
+                   (1..<128).contains(data[$0]) && data[$0 + 1] == 0
+               }),
+               let value = String(data: data, encoding: .utf16LittleEndian)
+            {
+                return value
+            }
+            return String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .utf16LittleEndian)
+        default:
+            return nil
+        }
+    }
+
+    private static func cookieHeader(accessToken: String) throws -> String {
+        let parts = accessToken.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 2 else {
+            throw ProviderFetchError.missing("Cursor 登录令牌无效，请重新登录")
+        }
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let subject = json["sub"] as? String,
+              let userID = subject.split(separator: "|", omittingEmptySubsequences: true).last,
+              !userID.isEmpty,
+              userID.unicodeScalars.allSatisfy(
+                  CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-")).contains),
+              let expiration = json["exp"] as? NSNumber
+        else {
+            throw ProviderFetchError.missing("Cursor 登录令牌无效，请重新登录")
+        }
+        guard Date(timeIntervalSince1970: expiration.doubleValue).timeIntervalSinceNow > 60 else {
+            throw ProviderFetchError.missing("Cursor 登录已过期，请重新登录")
+        }
+        return "WorkosCursorSessionToken=\(userID)%3A%3A\(accessToken)"
     }
 }

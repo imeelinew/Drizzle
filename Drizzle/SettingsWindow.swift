@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+private enum SettingsWindowMetrics {
+    static let contentSize = NSSize(width: 778, height: 509)
+    static let sidebarWidth: CGFloat = 196
+}
+
 enum SettingsPage: String, CaseIterable, Hashable, Identifiable {
     case codex
     case claude
@@ -52,42 +57,54 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func show() {
         if let window {
-            window.makeKeyAndOrderFront(nil)
+            NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
             return
         }
         let hosting = NSHostingController(rootView: SettingsRootView(store: self.store))
-        let win = NSWindow(contentViewController: hosting)
+        let win = SettingsWindow(contentViewController: hosting)
         win.title = "设置"
-        win.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        win.styleMask = [.titled, .closable, .fullSizeContentView]
         win.collectionBehavior = [.fullScreenNone, .fullScreenDisallowsTiling]
         win.isReleasedWhenClosed = false
-        let size = NSSize(width: 950, height: 680)
-        win.minSize = win.frameRect(forContentRect: NSRect(origin: .zero, size: NSSize(width: 860, height: 560))).size
-        win.setFrame(NSRect(origin: win.frame.origin, size: size), display: false)
+        win.setContentSize(SettingsWindowMetrics.contentSize)
+        win.minSize = win.frame.size
+        win.maxSize = win.frame.size
         win.center()
+        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        win.standardWindowButton(.zoomButton)?.isHidden = true
         win.delegate = self
         self.window = win
-        win.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(nil)
     }
 
     func windowWillClose(_ notification: Notification) {
         (notification.object as? NSWindow)?.delegate = nil
         self.window = nil
+        NSApp.setActivationPolicy(.accessory)
     }
+}
+
+private final class SettingsWindow: NSWindow {
+    override func miniaturize(_ sender: Any?) {}
+    override func zoom(_ sender: Any?) {}
+    override func toggleFullScreen(_ sender: Any?) {}
 }
 
 struct SettingsRootView: View {
     @Bindable var store: DrizzleStore
     @State private var page: SettingsPage = .codex
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @AppStorage("windowTransparencyEnabled") private var windowTransparencyEnabled = false
 
     var body: some View {
-        NavigationSplitView(columnVisibility: self.$columnVisibility) {
+        NavigationSplitView {
             SettingsSidebar(selected: self.$page)
-                .navigationSplitViewColumnWidth(min: 150, ideal: 180)
+                .navigationSplitViewColumnWidth(
+                    min: SettingsWindowMetrics.sidebarWidth,
+                    ideal: SettingsWindowMetrics.sidebarWidth,
+                    max: SettingsWindowMetrics.sidebarWidth)
         } detail: {
             NavigationStack {
                 self.detail
@@ -95,25 +112,6 @@ struct SettingsRootView: View {
             .navigationTitle(self.page.title)
         }
         .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button("侧边栏", systemImage: "sidebar.left") {
-                    withAnimation {
-                        self.columnVisibility = self.columnVisibility == .detailOnly ? .all : .detailOnly
-                    }
-                }
-                .help("显示或隐藏侧边栏")
-            }
-        }
-        .toolbarBackgroundVisibility(self.windowTransparencyEnabled ? .hidden : .automatic, for: .windowToolbar)
-        .background {
-            WindowTransparencyConfigurator(enabled: self.windowTransparencyEnabled)
-                .frame(width: 0, height: 0)
-            if self.windowTransparencyEnabled {
-                WindowBackgroundBlur()
-                    .ignoresSafeArea()
-            }
-        }
     }
 
     @ViewBuilder
@@ -144,7 +142,6 @@ struct SettingsRootView: View {
 struct ProviderStatusPage: View {
     @Bindable var store: DrizzleStore
     let provider: UsageProvider
-    @AppStorage("windowTransparencyEnabled") private var windowTransparencyEnabled = false
 
     var body: some View {
         Form {
@@ -166,7 +163,6 @@ struct ProviderStatusPage: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(self.windowTransparencyEnabled ? .hidden : .automatic)
         .settingsContentMargins()
     }
 
@@ -182,7 +178,6 @@ struct CredentialPage: View {
     @Binding var text: String
     let prompt: String
     let onCommit: () async -> Void
-    @AppStorage("windowTransparencyEnabled") private var windowTransparencyEnabled = false
 
     var body: some View {
         Form {
@@ -198,14 +193,12 @@ struct CredentialPage: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(self.windowTransparencyEnabled ? .hidden : .automatic)
         .settingsContentMargins()
     }
 }
 
 struct ZaiSettingsPage: View {
     @Bindable var store: DrizzleStore
-    @AppStorage("windowTransparencyEnabled") private var windowTransparencyEnabled = false
 
     var body: some View {
         Form {
@@ -230,14 +223,12 @@ struct ZaiSettingsPage: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(self.windowTransparencyEnabled ? .hidden : .automatic)
         .settingsContentMargins()
     }
 }
 
 struct GeneralSettingsPage: View {
     @Bindable var store: DrizzleStore
-    @AppStorage("windowTransparencyEnabled") private var windowTransparencyEnabled = false
     @State private var launchAtLogin = LoginItemController.isEnabled
     @State private var launchError: String?
 
@@ -314,12 +305,8 @@ struct GeneralSettingsPage: View {
                     .buttonStyle(.bordered)
                 }
             }
-            Section("窗口") {
-                Toggle("窗口透明", isOn: self.$windowTransparencyEnabled)
-            }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(self.windowTransparencyEnabled ? .hidden : .automatic)
         .settingsContentMargins()
     }
 }
@@ -527,44 +514,6 @@ private final class SidebarPageCell: NSTableCellView {
         self.titleField.stringValue = title
         self.iconView.image = icon
         self.iconView.contentTintColor = .labelColor
-    }
-}
-
-struct WindowBackgroundBlur: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.material = .hudWindow
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
-}
-
-struct WindowTransparencyConfigurator: NSViewRepresentable {
-    var enabled: Bool
-
-    func makeNSView(context: Context) -> NSView { Probe() }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async { [weak nsView] in
-            guard let window = nsView?.window else { return }
-            if self.enabled {
-                window.isOpaque = false
-                window.backgroundColor = .clear
-                window.titlebarAppearsTransparent = true
-            } else {
-                window.isOpaque = true
-                window.backgroundColor = .windowBackgroundColor
-                window.titlebarAppearsTransparent = false
-            }
-            window.invalidateShadow()
-        }
-    }
-
-    private final class Probe: NSView {
-        override var isOpaque: Bool { false }
     }
 }
 

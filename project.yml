@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     macOS: "15.0"
   createIntermediateGroups: true
+  postGenCommand: perl -i -pe 's/lastKnownFileType = folder; path = Drizzle\.icon;/lastKnownFileType = folder.iconcomposer.icon; path = Drizzle.icon;/' Drizzle.xcodeproj/project.pbxproj
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -16,6 +17,9 @@ targets:
     platform: macOS
     sources:
       - Drizzle
+      - path: Drizzle.icon
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.eli.Drizzle
@@ -23,7 +27,15 @@ targets:
         DEVELOPMENT_LANGUAGE: zh-Hans
         INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        INFOPLIST_KEY_CFBundleIconName: Drizzle
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: Drizzle
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+schemes:
+  Drizzle:
+    build:
+      targets:
+        Drizzle: all
+    run:
+      config: Debug

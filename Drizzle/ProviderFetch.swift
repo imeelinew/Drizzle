@@ -6,17 +6,23 @@ struct ProviderFetchResult {
     var windows: [RateWindow]
     var message: String?
     var updatedAt: Date
+    var balance: String? = nil
 }
 
 enum ProviderFetch {
-    static func fetchAll() async -> [ProviderFetchResult] {
+    static func fetch(_ providers: [UsageProvider]) async -> [ProviderFetchResult] {
         await withTaskGroup(of: ProviderFetchResult.self) { group in
-            group.addTask { await self.codex() }
-            group.addTask { await self.claude() }
-            group.addTask { await self.cursor() }
-            group.addTask { await self.zai() }
-            group.addTask { await self.deepseek() }
-            group.addTask { await self.openrouter() }
+            for provider in providers {
+                group.addTask {
+                    switch provider {
+                    case .codex: await self.codex()
+                    case .claude: await self.claude()
+                    case .cursor: await self.cursor()
+                    case .zai: await self.zai()
+                    case .openrouter: await self.openrouter()
+                    }
+                }
+            }
             var results: [ProviderFetchResult] = []
             for await result in group {
                 results.append(result)
@@ -97,24 +103,159 @@ enum ProviderFetch {
     }
 
     static func cursor() async -> ProviderFetchResult {
-        self.failure(.cursor, "Cursor 需要浏览器 Cookie，设置稍后再接")
+        let cookie = DrizzleSecrets.cursorCookie.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cookie.isEmpty else {
+            return self.failure(.cursor, "在设置里粘贴 Cursor 的 Cookie")
+        }
+        do {
+            var request = URLRequest(url: URL(string: "https://cursor.com/api/usage-summary")!)
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue(cookie, forHTTPHeaderField: "Cookie")
+            let json = try await self.json(request)
+            let individual = json["individualUsage"] as? [String: Any]
+            let plan = individual?["plan"] as? [String: Any]
+            let overall = individual?["overall"] as? [String: Any]
+            let reset = self.date(json["billingCycleEnd"])
+            let auto = self.percent(plan?["autoPercentUsed"])
+            let api = self.percent(plan?["apiPercentUsed"])
+            let percent: Double? = self.percent(plan?["totalPercentUsed"])
+                ?? self.ratio(used: plan?["used"], limit: plan?["limit"])
+                ?? self.ratio(used: overall?["used"], limit: overall?["limit"])
+                ?? {
+                    if let auto, let api { return (auto + api) / 2 }
+                    return auto ?? api
+                }()
+            guard let percent else {
+                return self.failure(.cursor, "Cursor 没有返回套餐额度")
+            }
+            return ProviderFetchResult(
+                provider: .cursor,
+                plan: (json["membershipType"] as? String)?.capitalized,
+                windows: [RateWindow(
+                    usedPercent: min(100, max(0, percent)),
+                    windowMinutes: 30 * 24 * 60,
+                    resetsAt: reset,
+                    resetDescription: nil)],
+                message: nil,
+                updatedAt: .now)
+        } catch {
+            return self.failure(.cursor, error.localizedDescription)
+        }
     }
 
     static func zai() async -> ProviderFetchResult {
-        self.failure(.zai, "z.ai 需要 API key，设置稍后再接")
-    }
-
-    static func deepseek() async -> ProviderFetchResult {
-        ProviderFetchResult(
-            provider: .deepseek,
-            plan: nil,
-            windows: [],
-            message: "DeepSeek 只有余额和花费，没有会话或周额度",
-            updatedAt: .now)
+        let apiKey = DrizzleSecrets.zaiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !apiKey.isEmpty else {
+            return self.failure(.zai, "在设置里填写 z.ai API key")
+        }
+        let base = DrizzleSecrets.zaiRegion == "bigmodel-cn" ? "https://open.bigmodel.cn" : "https://api.z.ai"
+        do {
+            var request = URLRequest(url: URL(string: "\(base)/api/monitor/usage/quota/limit")!)
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let json = try await self.json(request)
+            let data = json["data"] as? [String: Any]
+            let limits = data?["limits"] as? [[String: Any]] ?? []
+            let windows = limits.compactMap(self.zaiWindow).sorted { ($0.windowMinutes ?? 0) < ($1.windowMinutes ?? 0) }
+            guard !windows.isEmpty else {
+                return self.failure(.zai, "z.ai 没有返回会话或周额度")
+            }
+            let plan = (data?["planName"] as? String) ?? (data?["level"] as? String)
+            return ProviderFetchResult(provider: .zai, plan: plan, windows: windows, message: nil, updatedAt: .now)
+        } catch {
+            return self.failure(.zai, error.localizedDescription)
+        }
     }
 
     static func openrouter() async -> ProviderFetchResult {
-        self.failure(.openrouter, "OpenRouter 需要 API key，设置稍后再接")
+        let apiKey = DrizzleSecrets.openRouterKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !apiKey.isEmpty else {
+            return self.failure(.openrouter, "在设置里填写 OpenRouter API key")
+        }
+        var request = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/key")!)
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        var creditsRequest = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/credits")!)
+        creditsRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        creditsRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        // The two endpoints supply independent parts of the current account state
+        let keyPayload = try? await self.json(request)
+        let creditsPayload = try? await self.json(creditsRequest)
+        guard keyPayload != nil || creditsPayload != nil else {
+            return self.failure(.openrouter, "OpenRouter 请求失败")
+        }
+        let data = keyPayload?["data"] as? [String: Any]
+        let creditsData = creditsPayload?["data"] as? [String: Any]
+        let limit = self.percent(data?["limit"])
+        let usage = self.percent(data?["usage"])
+            ?? {
+                guard let limit, let remaining = self.percent(data?["limit_remaining"]) else { return nil }
+                return limit - remaining
+            }()
+        let windows: [RateWindow]
+        if let limit, limit > 0, let usage {
+            windows = [RateWindow(
+                usedPercent: min(100, max(0, usage / limit * 100)),
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: nil)]
+        } else {
+            windows = []
+        }
+        let balance: String? = {
+            guard let total = self.percent(creditsData?["total_credits"]),
+                  let used = self.percent(creditsData?["total_usage"]),
+                  total.isFinite, used.isFinite else { return nil }
+            return String(format: "$%.2f", max(0, total - used))
+        }()
+        return ProviderFetchResult(
+            provider: .openrouter,
+            plan: nil,
+            windows: windows,
+            message: windows.isEmpty && balance == nil ? "没有可用的额度或余额" : nil,
+            updatedAt: .now,
+            balance: balance)
+    }
+
+    private static func percent(_ value: Any?) -> Double? {
+        switch value {
+        case let number as Double: number
+        case let number as Int: Double(number)
+        default: nil
+        }
+    }
+
+    private static func ratio(used: Any?, limit: Any?) -> Double? {
+        guard let used = self.percent(used), let limit = self.percent(limit), limit > 0 else { return nil }
+        return used / limit * 100
+    }
+
+    private static func zaiWindow(_ raw: [String: Any]) -> RateWindow? {
+        guard let type = raw["type"] as? String, type == "TOKENS_LIMIT" || type == "CREDIT_LIMIT",
+              let reportedPercent = self.percent(raw["percentage"])
+        else { return nil }
+        let unit = raw["unit"] as? Int ?? 0
+        let number = raw["number"] as? Int ?? 0
+        let multipliers = [1: 1440, 3: 60, 5: 1, 6: 10080]
+        guard let multiplier = multipliers[unit], number > 0 else { return nil }
+        let minutes = number * multiplier
+        guard minutes == 300 || minutes == 10080 else { return nil }
+        let reset = self.percent(raw["nextResetTime"])
+        let total = self.percent(raw["usage"])
+        let current = self.percent(raw["currentValue"])
+        let remaining = self.percent(raw["remaining"])
+        let percent: Double
+        if let total, total > 0 {
+            let used = max(current ?? 0, remaining.map { total - $0 } ?? 0)
+            percent = (current != nil || remaining != nil) ? used / total * 100 : reportedPercent
+        } else {
+            percent = reportedPercent
+        }
+        return RateWindow(
+            usedPercent: min(100, max(0, percent)),
+            windowMinutes: minutes,
+            resetsAt: reset.map { Date(timeIntervalSince1970: $0 / 1000) },
+            resetDescription: nil)
     }
 
     private static func failure(_ provider: UsageProvider, _ message: String) -> ProviderFetchResult {

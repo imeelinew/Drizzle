@@ -29,7 +29,4 @@ enum ProviderBrandIcon {
         return image
     }
 
-    static func resetCacheForTesting() {
-        self.cache.removeAll()
-    }
 }

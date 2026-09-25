@@ -2,12 +2,11 @@ import SwiftUI
 
 @main
 struct DrizzleApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
-        MenuBarExtra {
-            QuotaMenu()
-        } label: {
-            Text("Drizzle")
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
     }
 }

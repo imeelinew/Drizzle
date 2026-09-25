@@ -6,7 +6,7 @@ func L(_ key: String) -> String {
 }
 
 func L(_ key: String, _ arguments: CVarArg...) -> String {
-    String(format: L(key), locale: Locale.current, arguments: arguments)
+    String(format: L(key), locale: Locale(identifier: "zh_CN"), arguments: arguments)
 }
 
 enum WorkdayTickAppearance: String {
@@ -20,7 +20,6 @@ enum UsageProvider: String, CaseIterable, Hashable {
     case claude
     case cursor
     case zai
-    case deepseek
     case openrouter
 
     var instanceID: ProviderInstanceID {
@@ -50,19 +49,6 @@ struct ProviderColor {
     }
 }
 
-struct ProviderTokenAccount {
-    var displayName: String
-}
-
-struct UserProviderPlugin {
-    struct Manifest {
-        var id: ProviderInstanceID
-        var name: String
-    }
-
-    var manifest: Manifest
-}
-
 struct RateWindow: Equatable {
     let usedPercent: Double
     let windowMinutes: Int?
@@ -88,8 +74,8 @@ struct SessionEquivalentForecast {
     var windowsUntilReset: Int
 }
 
-func codexBarLocalizedLocale() -> Locale { .current }
-func codexBarLocalizedResourceLocale() -> Locale { .current }
+func codexBarLocalizedLocale() -> Locale { Locale(identifier: "zh_CN") }
+func codexBarLocalizedResourceLocale() -> Locale { Locale(identifier: "zh_CN") }
 func codexBarLocalizedInteger(_ value: Int) -> String { String(value) }
 
 struct ProviderMetadata {
@@ -168,15 +154,6 @@ enum ProviderDescriptorRegistry {
                     primary: .exact(kind: .session, minutes: 5 * 60),
                     secondary: .exact(kind: .weekly, minutes: 7 * 24 * 60),
                     sessionPaceWindowRule: .windowDuration(minutes: 5 * 60)))
-        case .deepseek:
-            Descriptor(
-                metadata: ProviderMetadata(
-                    displayName: "DeepSeek",
-                    sessionLabel: "Balance",
-                    weeklyLabel: "Balance",
-                    iconResourceName: "ProviderIcon-deepseek",
-                    color: ProviderColor(red: 0.32, green: 0.49, blue: 0.94)),
-                pace: .unsupported)
         case .openrouter:
             Descriptor(
                 metadata: ProviderMetadata(

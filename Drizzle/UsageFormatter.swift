@@ -11,7 +11,7 @@ enum UsageFormatter {
     }
 
     private static func localized(_ key: String, _ args: CVarArg...) -> String {
-        String(format: L(key), locale: Locale.current, arguments: args)
+        String(format: L(key), locale: Locale(identifier: "zh_CN"), arguments: args)
     }
 
     public static func percentText(_ percent: Double, suffix: String) -> String {
@@ -46,15 +46,15 @@ enum UsageFormatter {
         let minutes = totalMinutes % 60
 
         if days > 0 {
-            if hours > 0 { return "in \(days)d \(hours)h" }
-            if minutes > 0 { return "in \(days)d \(minutes)m" }
-            return "in \(days)d"
+            if hours > 0 { return "in \(days)天\(hours)小时" }
+            if minutes > 0 { return "in \(days)天\(minutes)分钟" }
+            return "in \(days)天"
         }
         if hours > 0 {
-            if minutes > 0 { return "in \(hours)h \(minutes)m" }
-            return "in \(hours)h"
+            if minutes > 0 { return "in \(hours)小时\(minutes)分钟" }
+            return "in \(hours)小时"
         }
-        return "in \(totalMinutes)m"
+        return "in \(totalMinutes)分钟"
     }
 
     private static func resetCountdownMinutes(from date: Date, now: Date) -> Int? {
@@ -67,15 +67,15 @@ enum UsageFormatter {
         // Human-friendly phrasing: today / tomorrow / date+time.
         let calendar = Calendar.current
         if calendar.isDate(date, inSameDayAs: now) {
-            return date.formatted(.dateTime.hour().minute().locale(Locale.current))
+            return date.formatted(.dateTime.hour().minute().locale(Locale(identifier: "zh_CN")))
         }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
            calendar.isDate(date, inSameDayAs: tomorrow)
         {
-            let timeStr = date.formatted(.dateTime.hour().minute().locale(Locale.current))
+            let timeStr = date.formatted(.dateTime.hour().minute().locale(Locale(identifier: "zh_CN")))
             return self.localized("reset_tomorrow_format", timeStr)
         }
-        return date.formatted(.dateTime.month(.abbreviated).day().hour().minute().locale(Locale.current))
+        return date.formatted(.dateTime.month(.abbreviated).day().hour().minute().locale(Locale(identifier: "zh_CN")))
     }
 
     public static func resetLine(
@@ -123,7 +123,7 @@ enum UsageFormatter {
         }
         if let hours = Calendar.current.dateComponents([.hour], from: date, to: now).hour, hours < 24 {
             let rel = RelativeDateTimeFormatter()
-            rel.locale = Locale.current
+            rel.locale = Locale(identifier: "zh_CN")
             rel.unitsStyle = .abbreviated
             return self.localized("Updated relative %@", rel.localizedString(for: date, relativeTo: now))
         }

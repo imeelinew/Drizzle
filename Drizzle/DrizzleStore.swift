@@ -21,6 +21,52 @@ enum RefreshInterval: Int, CaseIterable, Identifiable {
     }
 }
 
+enum MenuBarMetric: String, Identifiable {
+    case session
+    case weekly
+    case total
+    case cursor
+    case thirdParty
+    case grokBot
+    case keyLimit
+
+    var id: String { self.rawValue }
+
+    var title: String {
+        switch self {
+        case .session: "会话额度"
+        case .weekly: "周额度"
+        case .total: "总计"
+        case .cursor: "Cursor"
+        case .thirdParty: "Third Party"
+        case .grokBot: "Grok Bot"
+        case .keyLimit: "密钥额度"
+        }
+    }
+
+    static func options(for provider: UsageProvider) -> [Self] {
+        switch provider {
+        case .codex, .claude, .zai: [.session, .weekly]
+        case .cursor: [.total, .cursor, .thirdParty, .grokBot]
+        case .openrouter: [.keyLimit]
+        }
+    }
+}
+
+enum MenuBarPercentMode: String, CaseIterable, Identifiable {
+    case remaining
+    case used
+
+    var id: String { self.rawValue }
+
+    var title: String {
+        switch self {
+        case .remaining: "剩余"
+        case .used: "已使用"
+        }
+    }
+}
+
 enum DrizzleSecrets {
     static let openRouterKeyName = "drizzle.openrouterKey"
     static let zaiKeyName = "drizzle.zaiKey"
@@ -67,6 +113,24 @@ final class DrizzleStore {
         return RefreshInterval(rawValue: raw) ?? .oneMinute
     }()
     var refreshOnOpen = UserDefaults.standard.object(forKey: "refreshOnOpen") as? Bool ?? true
+    var menuBarProvider: UsageProvider = {
+        let raw = UserDefaults.standard.string(forKey: "menuBarProvider") ?? ""
+        return UsageProvider(rawValue: raw) ?? .codex
+    }()
+    var menuBarMetric: MenuBarMetric = {
+        let raw = UserDefaults.standard.string(forKey: "menuBarMetric") ?? ""
+        return MenuBarMetric(rawValue: raw) ?? .session
+    }()
+    var menuBarPercentMode: MenuBarPercentMode = {
+        let raw = UserDefaults.standard.string(forKey: "menuBarPercentMode") ?? ""
+        return MenuBarPercentMode(rawValue: raw) ?? .remaining
+    }()
+
+    init() {
+        if !MenuBarMetric.options(for: self.menuBarProvider).contains(self.menuBarMetric) {
+            self.menuBarMetric = MenuBarMetric.options(for: self.menuBarProvider)[0]
+        }
+    }
 
     var visibleProviders: [UsageProvider] {
         UsageProvider.allCases.filter { self.enabledProviders.contains($0) }
@@ -98,6 +162,28 @@ final class DrizzleStore {
     func setRefreshOnOpen(_ enabled: Bool) {
         self.refreshOnOpen = enabled
         UserDefaults.standard.set(enabled, forKey: "refreshOnOpen")
+    }
+
+    func setMenuBarProvider(_ provider: UsageProvider) {
+        self.menuBarProvider = provider
+        UserDefaults.standard.set(provider.rawValue, forKey: "menuBarProvider")
+        if !MenuBarMetric.options(for: provider).contains(self.menuBarMetric) {
+            self.setMenuBarMetric(MenuBarMetric.options(for: provider)[0])
+        }
+        self.onChange?()
+    }
+
+    func setMenuBarMetric(_ metric: MenuBarMetric) {
+        guard MenuBarMetric.options(for: self.menuBarProvider).contains(metric) else { return }
+        self.menuBarMetric = metric
+        UserDefaults.standard.set(metric.rawValue, forKey: "menuBarMetric")
+        self.onChange?()
+    }
+
+    func setMenuBarPercentMode(_ mode: MenuBarPercentMode) {
+        self.menuBarPercentMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: "menuBarPercentMode")
+        self.onChange?()
     }
 
     func windows(for provider: UsageProvider) -> [RateWindow] {
@@ -140,23 +226,30 @@ final class DrizzleStore {
         self.onChange?()
     }
 
-    var iconWindows: (session: Double?, weekly: Double?) {
-        let provider = self.iconProvider
-        let windows = self.windows(for: provider)
-        let session = windows.first.map { 100 - $0.usedPercent }
-        let weekly = (provider == .cursor ? self.cursorAutoWindow : windows.dropFirst().first)
-            .map { 100 - $0.usedPercent }
-        return (session, weekly ?? (windows.count == 1 ? nil : weekly))
-    }
-
-    var iconProvider: UsageProvider {
-        if case let .provider(id) = self.selection, let provider = id.firstPartyProvider,
-           self.isEnabled(provider),
-           !self.windows(for: provider).isEmpty
-        {
-            return provider
+    var menuBarPercent: Double? {
+        guard self.isEnabled(self.menuBarProvider),
+              let result = self.results[self.menuBarProvider]
+        else { return nil }
+        let window: RateWindow?
+        switch self.menuBarMetric {
+        case .session:
+            window = result.windows.first { $0.windowMinutes == 300 }
+        case .weekly:
+            window = result.windows.first { $0.windowMinutes == 7 * 24 * 60 }
+        case .total, .cursor, .thirdParty, .grokBot:
+            let title: String = switch self.menuBarMetric {
+            case .total: "Total"
+            case .cursor: "Cursor"
+            case .thirdParty: "Third Party"
+            case .grokBot: "Grok Bot"
+            default: ""
+            }
+            window = result.windowTitles.firstIndex(of: title)
+                .flatMap { result.windows.indices.contains($0) ? result.windows[$0] : nil }
+        case .keyLimit:
+            window = result.windows.first
         }
-        return self.visibleProviders.first { !self.windows(for: $0).isEmpty }
-            ?? self.visibleProviders.first ?? .codex
+        guard let window else { return nil }
+        return self.menuBarPercentMode == .remaining ? window.remainingPercent : window.usedPercent
     }
 }

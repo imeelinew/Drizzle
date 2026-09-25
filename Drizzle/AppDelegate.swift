@@ -20,9 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         self.settings = SettingsWindowController(store: self.store)
-        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        self.statusItem.button?.image = MenuBarIcon.image(
-            sessionRemaining: nil, weeklyRemaining: nil, stale: true)
+        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.statusItem.button?.imagePosition = .imageLeft
+        self.statusItem.button?.imageScaling = .scaleProportionallyDown
         self.menu.delegate = self
         self.menu.autoenablesItems = false
         self.statusItem.menu = self.menu
@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.store.onRefreshIntervalChange = { [weak self] in
             self?.startRefreshLoop()
         }
+        self.updateIcon()
         self.startRefreshLoop()
     }
 
@@ -190,12 +191,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        let windows = self.store.iconWindows
-        let stale = self.store.visibleProviders.isEmpty
-            || self.store.results[self.store.iconProvider]?.windows.isEmpty != false
-        self.statusItem.button?.image = MenuBarIcon.image(
-            sessionRemaining: windows.session,
-            weeklyRemaining: windows.weekly,
-            stale: stale)
+        guard let button = self.statusItem.button else { return }
+        button.image = ProviderBrandIcon.image(for: self.store.menuBarProvider)
+        if let percent = self.store.menuBarPercent, percent.isFinite {
+            button.title = " \(Int(max(0, min(100, percent)).rounded()))%"
+        } else {
+            button.title = " —"
+        }
     }
 }

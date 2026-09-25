@@ -275,6 +275,45 @@ struct GeneralSettingsPage: View {
                     get: { self.store.refreshOnOpen },
                     set: { self.store.setRefreshOnOpen($0) }))
             }
+            Section("菜单栏") {
+                LabeledContent("供应商") {
+                    Picker("供应商", selection: Binding(
+                        get: { self.store.menuBarProvider },
+                        set: { self.store.setMenuBarProvider($0) })) {
+                        ForEach(UsageProvider.allCases, id: \.self) { provider in
+                            Text(ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName)
+                                .tag(provider)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .buttonStyle(.bordered)
+                }
+                LabeledContent("额度") {
+                    Picker("额度", selection: Binding(
+                        get: { self.store.menuBarMetric },
+                        set: { self.store.setMenuBarMetric($0) })) {
+                        ForEach(MenuBarMetric.options(for: self.store.menuBarProvider)) { metric in
+                            Text(metric.title).tag(metric)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .buttonStyle(.bordered)
+                }
+                LabeledContent("百分比") {
+                    Picker("百分比", selection: Binding(
+                        get: { self.store.menuBarPercentMode },
+                        set: { self.store.setMenuBarPercentMode($0) })) {
+                        ForEach(MenuBarPercentMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .buttonStyle(.bordered)
+                }
+            }
             Section("窗口") {
                 Toggle("窗口透明", isOn: self.$windowTransparencyEnabled)
             }

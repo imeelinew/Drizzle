@@ -38,6 +38,7 @@ targets:
         INFOPLIST_FILE: Drizzle/Info.plist
         DEVELOPMENT_LANGUAGE: zh-Hans
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 5Q5QT76MJU
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: Drizzle
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -51,4 +52,4 @@ schemes:
       targets:
         Drizzle: all
     run:
-      config: Debug
+      config: Release

@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000003 /* Sparkle */; };
-		A10000000000000000000004 /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* NOTICE */; };
-		A10000000000000000000006 /* Sparkle-LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* Sparkle-LICENSE */; };
 		083279E54617649456B5E984 /* ProviderBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B194E3745E2C3E95856957B9 /* ProviderBrandIcon.swift */; };
 		0E3549EB1D448FF6F3A137B0 /* ProviderIcon-zai.svg in Resources */ = {isa = PBXBuildFile; fileRef = 6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */; };
 		114426F4D0F5AE0EAF53AEF8 /* ProviderFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36BCCEB4227F188DBA0CCA5 /* ProviderFetch.swift */; };
@@ -24,11 +21,14 @@
 		5EED3F40853828461CF0F8ED /* MenuHighlightStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A4C42158155EF753D4D0FF /* MenuHighlightStyle.swift */; };
 		7D55A9A5BA5581B866A4FDE9 /* Double+Clamped.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E8916F2F973BC75BD1D490 /* Double+Clamped.swift */; };
 		7DCC92B945236C5514189C55 /* DrizzleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C82F225453874E6AF93D2D4 /* DrizzleStore.swift */; };
-		A00000000000000000000001 /* LoginItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000002 /* LoginItemController.swift */; };
 		8A345F9B2EB5129405854936 /* UsagePaceText.swift in Sources */ = {isa = PBXBuildFile; fileRef = E891E0A65C714C947035C18E /* UsagePaceText.swift */; };
 		8D1D22DBE2ABC52085E878A3 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2144C72C470F6E3703317579 /* SettingsWindow.swift */; };
 		940BE6957BAE4AF09F2AC848 /* QuotaMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD85BA3FC7E80D20B67CB93 /* QuotaMenu.swift */; };
 		9E3AE2BFCAC3569C8998E244 /* Drizzle.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1DB3042E408D8D08D7B3C4E1 /* Drizzle.icon */; };
+		A00000000000000000000001 /* LoginItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000002 /* LoginItemController.swift */; };
+		A10000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000003 /* Sparkle */; };
+		A10000000000000000000004 /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* NOTICE */; };
+		A10000000000000000000006 /* THIRD_PARTY_LICENSES/Sparkle-LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* THIRD_PARTY_LICENSES/Sparkle-LICENSE */; };
 		A69BE0583F86D39360CAF6D4 /* ProviderPace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12248976C027919AD38F683B /* ProviderPace.swift */; };
 		A73371DD9930B322C8043F41 /* DrizzleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70AEE06312F49E20EFEAA38A /* DrizzleApp.swift */; };
 		AC3DF9B5545F024BCC83903C /* ProviderIcon-cursor.svg in Resources */ = {isa = PBXBuildFile; fileRef = 7BC12281E3C8240FF029FD3C /* ProviderIcon-cursor.svg */; };
@@ -43,9 +43,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000005 /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
-		A10000000000000000000007 /* Sparkle-LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD_PARTY_LICENSES/Sparkle-LICENSE"; sourceTree = SOURCE_ROOT; };
-		A10000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		030C07ED34AE40517DD5F5EF /* CodexGlue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexGlue.swift; sourceTree = "<group>"; };
 		037DB586397E04433226EAB2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		12248976C027919AD38F683B /* ProviderPace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPace.swift; sourceTree = "<group>"; };
@@ -54,29 +51,32 @@
 		2144C72C470F6E3703317579 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
 		25830DD33D6776A572F4FDEA /* Drizzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Drizzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C82F225453874E6AF93D2D4 /* DrizzleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrizzleStore.swift; sourceTree = "<group>"; };
-		A00000000000000000000002 /* LoginItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemController.swift; sourceTree = "<group>"; };
-		51638F3F017BA22017D08AE9 /* ProviderIcon-claude.svg */ = {isa = PBXFileReference; path = "ProviderIcon-claude.svg"; sourceTree = "<group>"; };
+		51638F3F017BA22017D08AE9 /* ProviderIcon-claude.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-claude.svg"; sourceTree = "<group>"; };
 		5C8AE1C755CEEA0BDA36690B /* UsageProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageProgressBar.swift; sourceTree = "<group>"; };
 		5D0CADC20470DEB245F4AFF3 /* MenuCardMetricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuCardMetricRow.swift; sourceTree = "<group>"; };
 		60A4C42158155EF753D4D0FF /* MenuHighlightStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuHighlightStyle.swift; sourceTree = "<group>"; };
 		62E8916F2F973BC75BD1D490 /* Double+Clamped.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Double+Clamped.swift"; sourceTree = "<group>"; };
-		6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */ = {isa = PBXFileReference; path = "ProviderIcon-zai.svg"; sourceTree = "<group>"; };
+		6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-zai.svg"; sourceTree = "<group>"; };
 		6E086114DB154138DAE44916 /* UsageMenuCardMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMenuCardMetric.swift; sourceTree = "<group>"; };
 		6E0FD5C0F0A2707F7A11D2DA /* UsageFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageFormatter.swift; sourceTree = "<group>"; };
 		6EF2DC5C1A428C5ABFA8DF87 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		70AEE06312F49E20EFEAA38A /* DrizzleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrizzleApp.swift; sourceTree = "<group>"; };
 		712D78EF24925B8802A5AC2D /* ProviderSwitcherButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSwitcherButtons.swift; sourceTree = "<group>"; };
-		7BC12281E3C8240FF029FD3C /* ProviderIcon-cursor.svg */ = {isa = PBXFileReference; path = "ProviderIcon-cursor.svg"; sourceTree = "<group>"; };
+		7BC12281E3C8240FF029FD3C /* ProviderIcon-cursor.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-cursor.svg"; sourceTree = "<group>"; };
 		90471FA2AE70C3F22FD6054D /* UsagePace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePace.swift; sourceTree = "<group>"; };
+		A00000000000000000000002 /* LoginItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemController.swift; sourceTree = "<group>"; };
+		A10000000000000000000005 /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000007 /* THIRD_PARTY_LICENSES/Sparkle-LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD_PARTY_LICENSES/Sparkle-LICENSE"; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AC8504334CEB7370F26F37C0 /* ProviderSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSwitcherView.swift; sourceTree = "<group>"; };
 		B194E3745E2C3E95856957B9 /* ProviderBrandIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBrandIcon.swift; sourceTree = "<group>"; };
 		B839DF105DA501A8C6D39865 /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		D36BCCEB4227F188DBA0CCA5 /* ProviderFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderFetch.swift; sourceTree = "<group>"; };
-		E159B8F1950A3E1DFB6DFDB6 /* ProviderIcon-codex.svg */ = {isa = PBXFileReference; path = "ProviderIcon-codex.svg"; sourceTree = "<group>"; };
+		E159B8F1950A3E1DFB6DFDB6 /* ProviderIcon-codex.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-codex.svg"; sourceTree = "<group>"; };
 		E3A2B1B3E3A45269AA9C8208 /* UsageMenuCardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMenuCardLayout.swift; sourceTree = "<group>"; };
 		E891E0A65C714C947035C18E /* UsagePaceText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePaceText.swift; sourceTree = "<group>"; };
 		EBD85BA3FC7E80D20B67CB93 /* QuotaMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaMenu.swift; sourceTree = "<group>"; };
-		FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */ = {isa = PBXFileReference; path = "ProviderIcon-openrouter.svg"; sourceTree = "<group>"; };
+		FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-openrouter.svg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,7 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000005 /* NOTICE */,
-				A10000000000000000000007 /* Sparkle-LICENSE */,
+				A10000000000000000000007 /* THIRD_PARTY_LICENSES/Sparkle-LICENSE */,
 				1DB3042E408D8D08D7B3C4E1 /* Drizzle.icon */,
 				44958E97B60BA10D8D6D42D1 /* Drizzle */,
 				102A3916CC33EE93C6D3FBA1 /* Products */,
@@ -221,7 +221,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000004 /* NOTICE in Resources */,
-				A10000000000000000000006 /* Sparkle-LICENSE in Resources */,
+				A10000000000000000000006 /* THIRD_PARTY_LICENSES/Sparkle-LICENSE in Resources */,
 				4155E61EC553A630AC3AA415 /* Assets.xcassets in Resources */,
 				9E3AE2BFCAC3569C8998E244 /* Drizzle.icon in Resources */,
 				BCAAFEE7C38828F31AB55B6F /* Localizable.strings in Resources */,
@@ -392,12 +392,13 @@
 		C809DC38C97D3C6AD2BB9D23 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 5;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Drizzle;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
+				DEVELOPMENT_TEAM = 5Q5QT76MJU;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Drizzle/Info.plist;
@@ -414,12 +415,13 @@
 		D002B74F2EF0AAA76CFAE3B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 5;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Drizzle;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
+				DEVELOPMENT_TEAM = 5Q5QT76MJU;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Drizzle/Info.plist;

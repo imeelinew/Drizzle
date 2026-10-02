@@ -152,7 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 plan: result?.plan,
                 message: result?.message,
                 updatedAt: result?.updatedAt,
-                balance: result?.balance)
+                balance: result?.balance,
+                balanceDetail: result?.balanceDetail)
                 .frame(width: 310, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
             let hosting = NSHostingView(rootView: card)
@@ -201,7 +202,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateIcon() {
         guard let button = self.statusItem.button else { return }
         button.image = ProviderBrandIcon.image(for: self.store.menuBarProvider)
-        if let percent = self.store.menuBarPercent, percent.isFinite {
+        if self.store.menuBarMetric == .balance,
+           self.store.isEnabled(self.store.menuBarProvider),
+           let balance = self.store.results[self.store.menuBarProvider]?.balance
+        {
+            button.title = " \(balance)"
+        } else if let percent = self.store.menuBarPercent, percent.isFinite {
             button.title = " \(Int(max(0, min(100, percent)).rounded()))%"
         } else {
             button.title = " —"

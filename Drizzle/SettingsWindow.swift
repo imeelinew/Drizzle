@@ -12,6 +12,8 @@ enum SettingsPage: String, CaseIterable, Hashable, Identifiable {
     case cursor
     case zai
     case openrouter
+    case opencodego
+    case deepseek
     case general
 
     var id: String { self.rawValue }
@@ -32,6 +34,8 @@ enum SettingsPage: String, CaseIterable, Hashable, Identifiable {
         case .cursor: "Cursor"
         case .zai: "z.ai / GLM"
         case .openrouter: "OpenRouter"
+        case .opencodego: "OpenCode Go"
+        case .deepseek: "DeepSeek"
         case .general: "通用"
         }
     }
@@ -207,6 +211,16 @@ struct SettingsRootView: View {
                 self.store.saveSecrets()
                 await self.store.refresh(provider: .openrouter)
             }
+        case .opencodego:
+            CredentialPage(store: self.store, provider: .opencodego, title: "API key", text: self.$store.openCodeGoKey, prompt: "OpenCode Go API key") {
+                self.store.saveSecrets()
+                await self.store.refresh(provider: .opencodego)
+            }
+        case .deepseek:
+            CredentialPage(store: self.store, provider: .deepseek, title: "API key", text: self.$store.deepSeekKey, prompt: "sk-…") {
+                self.store.saveSecrets()
+                await self.store.refresh(provider: .deepseek)
+            }
         case .general:
             GeneralSettingsPage(store: self.store)
         }
@@ -263,6 +277,13 @@ struct CredentialPage: View {
                     .onSubmit { Task { await self.onCommit() } }
                 Button("保存并刷新") {
                     Task { await self.onCommit() }
+                }
+            }
+            if self.provider != .opencodego, self.provider != .deepseek,
+               let message = self.store.results[self.provider]?.message
+            {
+                Section("状态") {
+                    Text(message).foregroundStyle(.red)
                 }
             }
         }
@@ -366,17 +387,19 @@ struct GeneralSettingsPage: View {
                     .pickerStyle(.menu)
                     .buttonStyle(.bordered)
                 }
-                LabeledContent("百分比") {
-                    Picker("百分比", selection: Binding(
-                        get: { self.store.menuBarPercentMode },
-                        set: { self.store.setMenuBarPercentMode($0) })) {
-                        ForEach(MenuBarPercentMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                if self.store.menuBarMetric != .balance {
+                    LabeledContent("百分比") {
+                        Picker("百分比", selection: Binding(
+                            get: { self.store.menuBarPercentMode },
+                            set: { self.store.setMenuBarPercentMode($0) })) {
+                            ForEach(MenuBarPercentMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .buttonStyle(.bordered)
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .buttonStyle(.bordered)
                 }
             }
         }

@@ -29,6 +29,8 @@ enum MenuBarMetric: String, Identifiable {
     case thirdParty
     case grokBot
     case keyLimit
+    case monthly
+    case balance
 
     var id: String { self.rawValue }
 
@@ -41,6 +43,8 @@ enum MenuBarMetric: String, Identifiable {
         case .thirdParty: "Third Party"
         case .grokBot: "Grok Bot"
         case .keyLimit: "密钥额度"
+        case .monthly: "月额度"
+        case .balance: "余额"
         }
     }
 
@@ -49,6 +53,8 @@ enum MenuBarMetric: String, Identifiable {
         case .codex, .claude, .zai: [.session, .weekly]
         case .cursor: [.total, .cursor, .thirdParty, .grokBot]
         case .openrouter: [.keyLimit]
+        case .opencodego: [.session, .weekly, .monthly]
+        case .deepseek: [.balance]
         }
     }
 }
@@ -72,6 +78,16 @@ enum DrizzleSecrets {
     static let zaiKeyName = "drizzle.zaiKey"
     static let zaiRegionName = "drizzle.zaiRegion"
     static let cursorCookieName = "drizzle.cursorCookie"
+    static let openCodeGoKeyName = "drizzle.openCodeGoKey"
+    static let deepSeekKeyName = "drizzle.deepSeekKey"
+
+    static var openCodeGoKey: String {
+        UserDefaults.standard.string(forKey: self.openCodeGoKeyName) ?? ""
+    }
+
+    static var deepSeekKey: String {
+        UserDefaults.standard.string(forKey: self.deepSeekKeyName) ?? ""
+    }
 
     static var openRouterKey: String {
         UserDefaults.standard.string(forKey: self.openRouterKeyName) ?? ""
@@ -100,6 +116,8 @@ final class DrizzleStore {
     var zaiKey = DrizzleSecrets.zaiKey
     var zaiRegion = DrizzleSecrets.zaiRegion
     var cursorCookie = DrizzleSecrets.cursorCookie
+    var openCodeGoKey = DrizzleSecrets.openCodeGoKey
+    var deepSeekKey = DrizzleSecrets.deepSeekKey
     var onChange: (() -> Void)?
     var onRefreshIntervalChange: (() -> Void)?
     var enabledProviders: Set<UsageProvider> = {
@@ -203,6 +221,8 @@ final class DrizzleStore {
         UserDefaults.standard.set(self.zaiKey, forKey: DrizzleSecrets.zaiKeyName)
         UserDefaults.standard.set(self.zaiRegion, forKey: DrizzleSecrets.zaiRegionName)
         UserDefaults.standard.set(self.cursorCookie, forKey: DrizzleSecrets.cursorCookieName)
+        UserDefaults.standard.set(self.openCodeGoKey, forKey: DrizzleSecrets.openCodeGoKeyName)
+        UserDefaults.standard.set(self.deepSeekKey, forKey: DrizzleSecrets.deepSeekKeyName)
     }
 
     func refresh() async {
@@ -236,6 +256,10 @@ final class DrizzleStore {
             window = result.windows.first { $0.windowMinutes == 300 }
         case .weekly:
             window = result.windows.first { $0.windowMinutes == 7 * 24 * 60 }
+        case .monthly:
+            window = result.windows.first { $0.windowMinutes == 30 * 24 * 60 }
+        case .balance:
+            return nil
         case .total, .cursor, .thirdParty, .grokBot:
             let title: String = switch self.menuBarMetric {
             case .total: "Total"

@@ -39,6 +39,8 @@
 		DE15730C91EFE5F6881DBDC4 /* UsageFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0FD5C0F0A2707F7A11D2DA /* UsageFormatter.swift */; };
 		E41669A6C6BA68B91436F005 /* UsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C8AE1C755CEEA0BDA36690B /* UsageProgressBar.swift */; };
 		F5A470CC8463E92B47F0AC3F /* ProviderIcon-openrouter.svg in Resources */ = {isa = PBXBuildFile; fileRef = FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */; };
+		A20000000000000000000001 /* ProviderIcon-opencodego.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ProviderIcon-opencodego.svg */; };
+		A20000000000000000000003 /* ProviderIcon-deepseek.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* ProviderIcon-deepseek.svg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -75,6 +77,8 @@
 		E891E0A65C714C947035C18E /* UsagePaceText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePaceText.swift; sourceTree = "<group>"; };
 		EBD85BA3FC7E80D20B67CB93 /* QuotaMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaMenu.swift; sourceTree = "<group>"; };
 		FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-openrouter.svg"; sourceTree = "<group>"; };
+		A20000000000000000000002 /* ProviderIcon-opencodego.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-opencodego.svg"; sourceTree = "<group>"; };
+		A20000000000000000000004 /* ProviderIcon-deepseek.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-deepseek.svg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +141,8 @@
 				7BC12281E3C8240FF029FD3C /* ProviderIcon-cursor.svg */,
 				FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */,
 				6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */,
+				A20000000000000000000004 /* ProviderIcon-deepseek.svg */,
+				A20000000000000000000002 /* ProviderIcon-opencodego.svg */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -227,6 +233,8 @@
 				AC3DF9B5545F024BCC83903C /* ProviderIcon-cursor.svg in Resources */,
 				F5A470CC8463E92B47F0AC3F /* ProviderIcon-openrouter.svg in Resources */,
 				0E3549EB1D448FF6F3A137B0 /* ProviderIcon-zai.svg in Resources */,
+				A20000000000000000000003 /* ProviderIcon-deepseek.svg in Resources */,
+				A20000000000000000000001 /* ProviderIcon-opencodego.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

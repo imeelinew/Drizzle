@@ -1,6 +1,6 @@
 # Drizzle design rules
 
-- Do not use secondary descriptive text without the user's permission
+- Do not use secondary descriptive text without the user's permission, DeepSeek's current topped-up and granted balance breakdown is authorized
 - Do not use periods in user facing copy, commas are allowed
 - Use the existing CodexBar wording and layout for settings when applicable
 - Use the native control style established in Obelisk

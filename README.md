@@ -1,6 +1,6 @@
 # Drizzle
 
-Drizzle 是一个轻量的 macOS 菜单栏额度查看器，支持 Codex、Claude、Cursor、z.ai 和 OpenRouter
+Drizzle 是一个轻量的 macOS 菜单栏额度查看器，支持 Codex、Claude、Cursor、z.ai、OpenRouter、OpenCode Go 和 DeepSeek
 
 ## 本地构建
 

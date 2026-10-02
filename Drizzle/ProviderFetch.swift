@@ -9,6 +9,7 @@ struct ProviderFetchResult {
     var message: String?
     var updatedAt: Date
     var balance: String? = nil
+    var balanceDetail: String? = nil
 }
 
 enum ProviderFetch {
@@ -22,6 +23,8 @@ enum ProviderFetch {
                     case .cursor: await self.cursor()
                     case .zai: await self.zai()
                     case .openrouter: await self.openrouter()
+                    case .opencodego: await self.openCodeGo()
+                    case .deepseek: await self.deepSeek()
                     }
                 }
             }
@@ -119,8 +122,10 @@ enum ProviderFetch {
             let cycleStart = self.date(json["billingCycleStart"])
             let reset = self.date(json["billingCycleEnd"])
             let cycleMinutes = self.windowMinutes(start: cycleStart, end: reset)
-            let auto = self.percent(plan?["autoPercentUsed"])
-            let api = self.percent(plan?["apiPercentUsed"])
+            // Cursor reports percentage units, including values below 1 (0.36 means 0.36%).
+            // Match CodexBar's normalization before combining the two quota lanes.
+            let auto = self.percent(plan?["autoPercentUsed"]).map { min(100, max(0, $0)) }
+            let api = self.percent(plan?["apiPercentUsed"]).map { min(100, max(0, $0)) }
             let splitPercent: Double?
             if let auto, let api {
                 splitPercent = (auto + api) / 2
@@ -247,12 +252,124 @@ enum ProviderFetch {
             balance: balance)
     }
 
+    // Adapted from CodexBar's OpenCodeGoUsageFetcher.fetchAPIUsage / parseAPIUsage.
+    static func openCodeGo() async -> ProviderFetchResult {
+        guard let apiKey = self.apiKey(manual: DrizzleSecrets.openCodeGoKey, environmentKeys: ["OPENCODE_API_KEY"]) else {
+            return self.failure(.opencodego, "在设置里填写 OpenCode Go API key")
+        }
+        do {
+            var request = URLRequest(url: URL(string: "https://opencode.ai/zen/go/v1/usage")!)
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let body = try await self.json(request)
+            guard let usage = body["usage"] as? [String: Any],
+                  let rolling = usage["rolling"] as? [String: Any]
+            else { throw ProviderFetchError.missing("OpenCode Go 没有返回额度") }
+            let now = Date.now
+            var windows = [try self.openCodeGoWindow(rolling, minutes: 300, now: now)]
+            var titles = ["5 小时"]
+            for (key, minutes, title) in [("weekly", 10080, "周额度"), ("monthly", 43200, "月额度")] {
+                guard let raw = usage[key], !(raw is NSNull) else { continue }
+                guard let lane = raw as? [String: Any] else {
+                    throw ProviderFetchError.missing("OpenCode Go 额度格式无效")
+                }
+                windows.append(try self.openCodeGoWindow(lane, minutes: minutes, now: now))
+                titles.append(title)
+            }
+            return ProviderFetchResult(
+                provider: .opencodego, plan: "Go", windows: windows, windowTitles: titles,
+                message: nil, updatedAt: now)
+        } catch {
+            return self.failure(.opencodego, error.localizedDescription)
+        }
+    }
+
+    private static func openCodeGoWindow(_ raw: [String: Any], minutes: Int, now: Date) throws -> RateWindow {
+        // API percentages are already 0...100, unlike some dashboard hydration payloads.
+        let direct = self.firstNumber(raw, keys: [
+            "usagePercent", "usedPercent", "percentUsed", "percent", "usage_percent", "used_percent",
+            "utilization", "utilizationPercent", "utilization_percent", "usage",
+        ])
+        let used = self.firstNumber(raw, keys: ["used", "usage", "consumed", "count", "usedTokens", "usedMicroCents"])
+        let limit = self.firstNumber(raw, keys: ["limit", "total", "quota", "max", "cap", "tokenLimit", "limitMicroCents"])
+        guard let percent = direct ?? self.ratio(used: used, limit: limit) else {
+            throw ProviderFetchError.missing("OpenCode Go 额度格式无效")
+        }
+        let resetIn = self.firstNumber(raw, keys: [
+            "resetInSec", "resetInSeconds", "resetSeconds", "reset_sec", "reset_in_sec",
+            "resetsInSec", "resetsInSeconds", "resetIn", "resetSec",
+        ])
+        let resetAt = ["resetAt", "resetsAt", "reset_at", "resets_at", "nextReset", "next_reset", "renewAt", "renew_at"]
+            .lazy.compactMap { self.date(raw[$0]) }.first
+        return RateWindow(
+            usedPercent: min(100, max(0, percent)), windowMinutes: minutes,
+            resetsAt: resetIn.map { now.addingTimeInterval(max(0, $0)) } ?? resetAt,
+            resetDescription: nil)
+    }
+
+    // Adapted from CodexBar's DeepSeekUsageFetcher balance endpoint and currency selection.
+    static func deepSeek() async -> ProviderFetchResult {
+        guard let apiKey = self.apiKey(manual: DrizzleSecrets.deepSeekKey, environmentKeys: ["DEEPSEEK_API_KEY", "DEEPSEEK_KEY"]) else {
+            return self.failure(.deepseek, "在设置里填写 DeepSeek API key")
+        }
+        do {
+            var request = URLRequest(url: URL(string: "https://api.deepseek.com/user/balance")!)
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let body = try await self.json(request)
+            guard let available = body["is_available"] as? Bool,
+                  let infos = body["balance_infos"] as? [[String: Any]]
+            else { throw ProviderFetchError.missing("DeepSeek 余额格式无效") }
+            let balances = try infos.map { info -> (currency: String, total: Double, paid: Double, granted: Double) in
+                guard let currency = info["currency"] as? String,
+                      let total = self.percent(info["total_balance"]),
+                      let paid = self.percent(info["topped_up_balance"]),
+                      let granted = self.percent(info["granted_balance"])
+                else { throw ProviderFetchError.missing("DeepSeek 余额格式无效") }
+                return (currency, total, paid, granted)
+            }
+            // Do not hide a funded CNY account behind an empty USD entry.
+            guard let balance = balances.first(where: { $0.currency == "USD" && $0.total > 0 })
+                ?? balances.first(where: { $0.total > 0 })
+                ?? balances.first(where: { $0.currency == "USD" })
+                ?? balances.first
+            else { return self.failure(.deepseek, "DeepSeek 没有返回余额") }
+            return ProviderFetchResult(
+                provider: .deepseek, plan: nil, windows: [],
+                message: available ? nil : "余额不足或暂不可用于 API 调用",
+                updatedAt: .now,
+                balance: self.money(balance.total, currency: balance.currency),
+                balanceDetail: "充值 \(self.money(balance.paid, currency: balance.currency)) · 赠送 \(self.money(balance.granted, currency: balance.currency))")
+        } catch {
+            return self.failure(.deepseek, error.localizedDescription)
+        }
+    }
+
+    private static func money(_ amount: Double, currency: String) -> String {
+        let prefix = currency == "CNY" ? "¥" : currency == "USD" ? "$" : "\(currency) "
+        return prefix + String(format: "%.2f", amount)
+    }
+
+    private static func apiKey(manual: String, environmentKeys: [String]) -> String? {
+        for value in [manual] + environmentKeys.compactMap({ ProcessInfo.processInfo.environment[$0] }) {
+            let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty { return cleaned }
+        }
+        return nil
+    }
+
+    private static func firstNumber(_ raw: [String: Any], keys: [String]) -> Double? {
+        keys.lazy.compactMap { self.percent(raw[$0]) }.first
+    }
+
     private static func percent(_ value: Any?) -> Double? {
-        switch value {
-        case let number as Double: number
-        case let number as Int: Double(number)
+        let number: Double? = switch value {
+        case let number as NSNumber where CFGetTypeID(number) != CFBooleanGetTypeID(): number.doubleValue
+        case let text as String: Double(text.trimmingCharacters(in: .whitespacesAndNewlines))
         default: nil
         }
+        guard let number, number.isFinite else { return nil }
+        return number
     }
 
     private static func ratio(used: Any?, limit: Any?) -> Double? {
@@ -367,6 +484,9 @@ enum ProviderFetch {
     }
 
     private static func date(_ value: Any?) -> Date? {
+        if let timestamp = self.percent(value) {
+            return Date(timeIntervalSince1970: timestamp > 100_000_000_000 ? timestamp / 1000 : timestamp)
+        }
         guard let text = value as? String else { return nil }
         let formatter = ISO8601DateFormatter()
         if let date = formatter.date(from: text) { return date }

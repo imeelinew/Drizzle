@@ -21,6 +21,8 @@ enum UsageProvider: String, CaseIterable, Hashable {
     case cursor
     case zai
     case openrouter
+    case opencodego
+    case deepseek
 
     var instanceID: ProviderInstanceID {
         ProviderInstanceID(firstPartyProvider: self)
@@ -162,6 +164,29 @@ enum ProviderDescriptorRegistry {
                     weeklyLabel: "Usage",
                     iconResourceName: "ProviderIcon-openrouter",
                     color: ProviderColor(red: 100 / 255, green: 103 / 255, blue: 242 / 255)),
+                pace: .unsupported)
+        case .opencodego:
+            Descriptor(
+                metadata: ProviderMetadata(
+                    displayName: "OpenCode Go",
+                    sessionLabel: "5 小时",
+                    weeklyLabel: "周额度",
+                    iconResourceName: "ProviderIcon-opencodego",
+                    color: ProviderColor(red: 59 / 255, green: 130 / 255, blue: 246 / 255)),
+                pace: ProviderPaceCapability(
+                    resetWindowPace: .windowDuration(minutes: 30 * 24 * 60),
+                    primary: .session(maximumMinutes: 300),
+                    secondary: .weekly,
+                    sessionPaceWindowRule: .windowDuration(minutes: 300),
+                    allowsEstimatedUsage: false))
+        case .deepseek:
+            Descriptor(
+                metadata: ProviderMetadata(
+                    displayName: "DeepSeek",
+                    sessionLabel: "余额",
+                    weeklyLabel: "余额",
+                    iconResourceName: "ProviderIcon-deepseek",
+                    color: ProviderColor(red: 0.32, green: 0.49, blue: 0.94)),
                 pace: .unsupported)
         }
     }

@@ -9,6 +9,7 @@ struct ProviderQuotaCard: View {
     let message: String?
     let updatedAt: Date?
     let balance: String?
+    let balanceDetail: String?
 
     private var metadata: ProviderMetadata {
         ProviderDescriptorRegistry.descriptor(for: self.provider).metadata
@@ -27,6 +28,12 @@ struct ProviderQuotaCard: View {
                     Text(balance).monospacedDigit()
                 }
                 .font(.footnote)
+                if let balanceDetail {
+                    Text(balanceDetail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             if let message = self.message, self.metrics.isEmpty {
                 Text(message)
@@ -95,7 +102,9 @@ struct ProviderQuotaCard: View {
                 : index == 0 ? L(self.metadata.sessionLabel) : L(self.metadata.weeklyLabel)
             let pace = Self.paceDetail(provider: self.provider, window: window, isSession: index == 0)
             return UsageMenuCardView.Model.Metric(
-                id: index == 0 ? "primary" : "secondary",
+                id: self.windowTitles.indices.contains(index)
+                    ? self.windowTitles[index]
+                    : index == 0 ? "primary" : index == 1 ? "secondary" : "tertiary",
                 title: title,
                 percent: window.usedPercent,
                 percentStyle: .used,

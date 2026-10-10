@@ -31,8 +31,8 @@ targets:
         product: Sparkle
     settings:
       base:
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "0.1.1"
+        CURRENT_PROJECT_VERSION: "10"
         PRODUCT_BUNDLE_IDENTIFIER: com.eli.Drizzle
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Drizzle/Info.plist

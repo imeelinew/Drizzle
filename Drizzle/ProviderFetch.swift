@@ -13,26 +13,27 @@ struct ProviderFetchResult {
 }
 
 enum ProviderFetch {
-    static func fetch(_ providers: [UsageProvider]) async -> [ProviderFetchResult] {
-        await withTaskGroup(of: ProviderFetchResult.self) { group in
-            for provider in providers {
-                group.addTask {
-                    switch provider {
-                    case .codex: await self.codex()
-                    case .claude: await self.claude()
-                    case .cursor: await self.cursor()
-                    case .zai: await self.zai()
-                    case .openrouter: await self.openrouter()
-                    case .opencodego: await self.openCodeGo()
-                    case .deepseek: await self.deepSeek()
-                    }
-                }
-            }
-            var results: [ProviderFetchResult] = []
-            for await result in group {
-                results.append(result)
-            }
-            return results
+    // Quotas are live data, and authentication is supplied explicitly on every request.
+    // Reuse connections without retaining responses, cookies, or credential caches.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCredentialStorage = nil
+        return URLSession(configuration: configuration)
+    }()
+
+    static func fetch(_ provider: UsageProvider, credentials: DrizzleConfiguration.Credentials) async -> ProviderFetchResult {
+        switch provider {
+        case .codex: await self.codex()
+        case .claude: await self.claude()
+        case .cursor: await self.cursor(cookie: credentials.cursorCookie)
+        case .zai: await self.zai(apiKey: credentials.zaiKey, region: credentials.zaiRegion)
+        case .openrouter: await self.openrouter(apiKey: credentials.openRouterKey)
+        case .opencodego: await self.openCodeGo(apiKey: credentials.openCodeGoKey)
+        case .deepseek: await self.deepSeek(apiKey: credentials.deepSeekKey)
         }
     }
 
@@ -107,9 +108,9 @@ enum ProviderFetch {
         }
     }
 
-    static func cursor() async -> ProviderFetchResult {
+    static func cursor(cookie: String) async -> ProviderFetchResult {
         do {
-            let cookie = try CursorCredential.cookieHeader(manual: DrizzleSecrets.cursorCookie)
+            let cookie = try CursorCredential.cookieHeader(manual: cookie)
             var request = URLRequest(url: URL(string: "https://cursor.com/api/usage-summary")!)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.setValue(cookie, forHTTPHeaderField: "Cookie")
@@ -178,12 +179,12 @@ enum ProviderFetch {
         }
     }
 
-    static func zai() async -> ProviderFetchResult {
-        let apiKey = DrizzleSecrets.zaiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    static func zai(apiKey: String, region: String) async -> ProviderFetchResult {
+        let apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else {
             return self.failure(.zai, "在设置里填写 z.ai API key")
         }
-        let base = DrizzleSecrets.zaiRegion == "bigmodel-cn" ? "https://open.bigmodel.cn" : "https://api.z.ai"
+        let base = region == "bigmodel-cn" ? "https://open.bigmodel.cn" : "https://api.z.ai"
         do {
             var request = URLRequest(url: URL(string: "\(base)/api/monitor/usage/quota/limit")!)
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -202,8 +203,8 @@ enum ProviderFetch {
         }
     }
 
-    static func openrouter() async -> ProviderFetchResult {
-        let apiKey = DrizzleSecrets.openRouterKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    static func openrouter(apiKey: String) async -> ProviderFetchResult {
+        let apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else {
             return self.failure(.openrouter, "在设置里填写 OpenRouter API key")
         }
@@ -253,8 +254,8 @@ enum ProviderFetch {
     }
 
     // Adapted from CodexBar's OpenCodeGoUsageFetcher.fetchAPIUsage / parseAPIUsage.
-    static func openCodeGo() async -> ProviderFetchResult {
-        guard let apiKey = self.apiKey(manual: DrizzleSecrets.openCodeGoKey, environmentKeys: ["OPENCODE_API_KEY"]) else {
+    static func openCodeGo(apiKey: String) async -> ProviderFetchResult {
+        guard let apiKey = self.apiKey(manual: apiKey, environmentKeys: ["OPENCODE_API_KEY"]) else {
             return self.failure(.opencodego, "在设置里填写 OpenCode Go API key")
         }
         do {
@@ -308,8 +309,8 @@ enum ProviderFetch {
     }
 
     // Adapted from CodexBar's DeepSeekUsageFetcher balance endpoint and currency selection.
-    static func deepSeek() async -> ProviderFetchResult {
-        guard let apiKey = self.apiKey(manual: DrizzleSecrets.deepSeekKey, environmentKeys: ["DEEPSEEK_API_KEY", "DEEPSEEK_KEY"]) else {
+    static func deepSeek(apiKey: String) async -> ProviderFetchResult {
+        guard let apiKey = self.apiKey(manual: apiKey, environmentKeys: ["DEEPSEEK_API_KEY", "DEEPSEEK_KEY"]) else {
             return self.failure(.deepseek, "在设置里填写 DeepSeek API key")
         }
         do {
@@ -408,7 +409,7 @@ enum ProviderFetch {
         request.setValue("https://cursor.com", forHTTPHeaderField: "Origin")
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.httpBody = Data("{}".utf8)
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await self.session.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }
@@ -497,7 +498,7 @@ enum ProviderFetch {
     private static func json(_ request: URLRequest) async throws -> [String: Any] {
         var request = request
         request.timeoutInterval = 30
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await self.session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200 ..< 300).contains(status) else {
             throw ProviderFetchError.http(status)

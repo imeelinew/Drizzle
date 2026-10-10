@@ -10,6 +10,35 @@ Drizzle 是一个轻量的 macOS 菜单栏额度查看器，支持 Codex、Claud
 xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Debug -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO
 ```
 
+## 设置
+
+点击菜单中的“设置…”会用默认 JSON 编辑器打开 `~/Library/Application Support/Drizzle/config.json`，没有文件关联时使用 TextEdit，Drizzle 不创建设置窗口
+
+第一次启动此版本会创建配置文件并迁移现有设置和凭据，之后以这个文件为准，保存后自动生效，无需重启，完整示例见 [docs/config.example.json](docs/config.example.json)
+
+- `launchAtLogin`：是否登录时启动
+- `refreshIntervalSeconds`：刷新间隔，支持 `0`（手动）、`60`、`300`、`900`、`1800`
+- `refreshOnOpen`：是否打开菜单时刷新
+- `enabledProviders`：开启的供应商，空数组表示全部关闭，列表顺序不影响菜单中的既有顺序
+- `menuBar.provider`：菜单栏显示哪个供应商
+- `menuBar.metric`：显示该供应商的哪项额度，取值见下表
+- `menuBar.percentMode`：`remaining`（剩余）或 `used`（已使用），余额显示不受此项影响
+- `credentials`：API key 与 Cursor Cookie，z.ai 区域支持 `global` 和 `bigmodel-cn`
+
+Codex 和 Claude 继续读取本地登录，Cursor Cookie 留空时读取 Cursor 本地登录，OpenCode Go 和 DeepSeek 的 API key 留空时继续读取原来支持的环境变量，z.ai 和 OpenRouter 需要在文件中填写 API key
+
+| 供应商 | `menuBar.metric` |
+| --- | --- |
+| `codex`、`claude`、`zai` | `session`、`weekly` |
+| `cursor` | `total`、`cursor`、`thirdParty`、`grokBot` |
+| `openrouter` | `keyLimit` |
+| `opencodego` | `session`、`weekly`、`monthly` |
+| `deepseek` | `balance` |
+
+配置使用标准 JSON，不支持注释，遗漏字段使用示例中的默认值，未知字段、错误类型或无效选项会拒绝加载，运行期间写错时继续使用上一次有效配置，并在菜单中显示错误，修正保存后自动恢复
+
+配置文件包含凭据，创建时目录权限为 `700`，文件权限为 `600`，仅当前用户可访问，应用不会在错误信息中输出凭据
+
 ## 更新与发布
 
 Drizzle 使用 Sparkle 2 和 EdDSA 签名更新，更新源位于 [docs/appcast.xml](docs/appcast.xml)

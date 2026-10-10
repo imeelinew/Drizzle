@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 enum RefreshInterval: Int, CaseIterable, Identifiable {
     case manual = 0
@@ -73,80 +72,57 @@ enum MenuBarPercentMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum DrizzleSecrets {
-    static let openRouterKeyName = "drizzle.openrouterKey"
-    static let zaiKeyName = "drizzle.zaiKey"
-    static let zaiRegionName = "drizzle.zaiRegion"
-    static let cursorCookieName = "drizzle.cursorCookie"
-    static let openCodeGoKeyName = "drizzle.openCodeGoKey"
-    static let deepSeekKeyName = "drizzle.deepSeekKey"
-
-    static var openCodeGoKey: String {
-        UserDefaults.standard.string(forKey: self.openCodeGoKeyName) ?? ""
-    }
-
-    static var deepSeekKey: String {
-        UserDefaults.standard.string(forKey: self.deepSeekKeyName) ?? ""
-    }
-
-    static var openRouterKey: String {
-        UserDefaults.standard.string(forKey: self.openRouterKeyName) ?? ""
-    }
-
-    static var zaiKey: String {
-        UserDefaults.standard.string(forKey: self.zaiKeyName) ?? ""
-    }
-
-    static var zaiRegion: String {
-        UserDefaults.standard.string(forKey: self.zaiRegionName) ?? "global"
-    }
-
-    static var cursorCookie: String {
-        UserDefaults.standard.string(forKey: self.cursorCookieName) ?? ""
-    }
-}
-
 @MainActor
-@Observable
 final class DrizzleStore {
     var results: [UsageProvider: ProviderFetchResult] = [:]
     var selection: ProviderSwitcherSelection = .overview
-    var isRefreshing = false
-    var openRouterKey = DrizzleSecrets.openRouterKey
-    var zaiKey = DrizzleSecrets.zaiKey
-    var zaiRegion = DrizzleSecrets.zaiRegion
-    var cursorCookie = DrizzleSecrets.cursorCookie
-    var openCodeGoKey = DrizzleSecrets.openCodeGoKey
-    var deepSeekKey = DrizzleSecrets.deepSeekKey
+    private(set) var isRefreshing = false
+    private(set) var configuration = DrizzleConfiguration()
     var onChange: (() -> Void)?
+    var onConfigurationChange: (() -> Void)?
     var onRefreshIntervalChange: (() -> Void)?
-    var enabledProviders: Set<UsageProvider> = {
-        guard let saved = UserDefaults.standard.stringArray(forKey: "enabledProviders") else {
-            return Set(UsageProvider.allCases)
-        }
-        return Set(saved.compactMap(UsageProvider.init(rawValue:)))
-    }()
-    var refreshInterval: RefreshInterval = {
-        guard let raw = UserDefaults.standard.object(forKey: "refreshInterval") as? Int else { return .oneMinute }
-        return RefreshInterval(rawValue: raw) ?? .oneMinute
-    }()
-    var refreshOnOpen = UserDefaults.standard.object(forKey: "refreshOnOpen") as? Bool ?? true
-    var menuBarProvider: UsageProvider = {
-        let raw = UserDefaults.standard.string(forKey: "menuBarProvider") ?? ""
-        return UsageProvider(rawValue: raw) ?? .codex
-    }()
-    var menuBarMetric: MenuBarMetric = {
-        let raw = UserDefaults.standard.string(forKey: "menuBarMetric") ?? ""
-        return MenuBarMetric(rawValue: raw) ?? .session
-    }()
-    var menuBarPercentMode: MenuBarPercentMode = {
-        let raw = UserDefaults.standard.string(forKey: "menuBarPercentMode") ?? ""
-        return MenuBarPercentMode(rawValue: raw) ?? .remaining
-    }()
+    private var inFlight: [UsageProvider: Task<ProviderFetchResult, Never>] = [:]
+    private var generation = 0
+    private var refreshingGeneration = 0
+    private var refreshAgain = false
 
-    init() {
-        if !MenuBarMetric.options(for: self.menuBarProvider).contains(self.menuBarMetric) {
-            self.menuBarMetric = MenuBarMetric.options(for: self.menuBarProvider)[0]
+    var enabledProviders: Set<UsageProvider> {
+        Set(self.configuration.enabledProviders.compactMap(UsageProvider.init(rawValue:)))
+    }
+
+    var refreshInterval: RefreshInterval {
+        RefreshInterval(rawValue: self.configuration.refreshIntervalSeconds) ?? .oneMinute
+    }
+
+    var refreshOnOpen: Bool { self.configuration.refreshOnOpen }
+    var menuBarProvider: UsageProvider { UsageProvider(rawValue: self.configuration.menuBar.provider) ?? .codex }
+    var menuBarMetric: MenuBarMetric { MenuBarMetric(rawValue: self.configuration.menuBar.metric) ?? .session }
+    var menuBarPercentMode: MenuBarPercentMode {
+        MenuBarPercentMode(rawValue: self.configuration.menuBar.percentMode) ?? .remaining
+    }
+
+    func apply(_ configuration: DrizzleConfiguration) {
+        guard configuration != self.configuration else { return }
+        let previous = self.configuration
+        let needsRefresh = previous.credentials != configuration.credentials
+            || Set(previous.enabledProviders) != Set(configuration.enabledProviders)
+        self.configuration = configuration
+        if needsRefresh {
+            self.generation += 1
+            for task in self.inFlight.values { task.cancel() }
+            self.inFlight.removeAll()
+            self.results.removeAll()
+        }
+        if case let .provider(id) = self.selection,
+           let provider = id.firstPartyProvider, !self.isEnabled(provider) {
+            self.selection = .overview
+        }
+        self.onConfigurationChange?()
+        let intervalChanged = previous.refreshIntervalSeconds != configuration.refreshIntervalSeconds
+        if intervalChanged { self.onRefreshIntervalChange?() }
+        // An automatic interval starts its own immediate refresh after a change.
+        if needsRefresh && (!intervalChanged || self.refreshInterval == .manual), self.onChange != nil {
+            Task { await self.refresh() }
         }
     }
 
@@ -156,52 +132,6 @@ final class DrizzleStore {
 
     func isEnabled(_ provider: UsageProvider) -> Bool {
         self.enabledProviders.contains(provider)
-    }
-
-    func setEnabled(_ enabled: Bool, for provider: UsageProvider) {
-        if enabled {
-            self.enabledProviders.insert(provider)
-        } else {
-            self.enabledProviders.remove(provider)
-            self.results.removeValue(forKey: provider)
-            if self.selection == .provider(provider.instanceID) { self.selection = .overview }
-        }
-        UserDefaults.standard.set(self.visibleProviders.map(\.rawValue), forKey: "enabledProviders")
-        self.onChange?()
-        if enabled { Task { await self.refresh(provider: provider) } }
-    }
-
-    func setRefreshInterval(_ interval: RefreshInterval) {
-        self.refreshInterval = interval
-        UserDefaults.standard.set(interval.rawValue, forKey: "refreshInterval")
-        self.onRefreshIntervalChange?()
-    }
-
-    func setRefreshOnOpen(_ enabled: Bool) {
-        self.refreshOnOpen = enabled
-        UserDefaults.standard.set(enabled, forKey: "refreshOnOpen")
-    }
-
-    func setMenuBarProvider(_ provider: UsageProvider) {
-        self.menuBarProvider = provider
-        UserDefaults.standard.set(provider.rawValue, forKey: "menuBarProvider")
-        if !MenuBarMetric.options(for: provider).contains(self.menuBarMetric) {
-            self.setMenuBarMetric(MenuBarMetric.options(for: provider)[0])
-        }
-        self.onChange?()
-    }
-
-    func setMenuBarMetric(_ metric: MenuBarMetric) {
-        guard MenuBarMetric.options(for: self.menuBarProvider).contains(metric) else { return }
-        self.menuBarMetric = metric
-        UserDefaults.standard.set(metric.rawValue, forKey: "menuBarMetric")
-        self.onChange?()
-    }
-
-    func setMenuBarPercentMode(_ mode: MenuBarPercentMode) {
-        self.menuBarPercentMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: "menuBarPercentMode")
-        self.onChange?()
     }
 
     func windows(for provider: UsageProvider) -> [RateWindow] {
@@ -216,34 +146,47 @@ final class DrizzleStore {
         return result.windows[index]
     }
 
-    func saveSecrets() {
-        UserDefaults.standard.set(self.openRouterKey, forKey: DrizzleSecrets.openRouterKeyName)
-        UserDefaults.standard.set(self.zaiKey, forKey: DrizzleSecrets.zaiKeyName)
-        UserDefaults.standard.set(self.zaiRegion, forKey: DrizzleSecrets.zaiRegionName)
-        UserDefaults.standard.set(self.cursorCookie, forKey: DrizzleSecrets.cursorCookieName)
-        UserDefaults.standard.set(self.openCodeGoKey, forKey: DrizzleSecrets.openCodeGoKeyName)
-        UserDefaults.standard.set(self.deepSeekKey, forKey: DrizzleSecrets.deepSeekKeyName)
-    }
-
     func refresh() async {
-        guard !self.isRefreshing else { return }
+        guard !self.isRefreshing else {
+            if self.refreshingGeneration != self.generation { self.refreshAgain = true }
+            return
+        }
         self.isRefreshing = true
-        defer {
-            self.isRefreshing = false
-            self.onChange?()
-        }
-        let fetched = await ProviderFetch.fetch(self.visibleProviders)
-        for result in fetched {
-            if self.isEnabled(result.provider) { self.results[result.provider] = result }
-        }
+        defer { self.isRefreshing = false }
+        repeat {
+            self.refreshAgain = false
+            let generation = self.generation
+            self.refreshingGeneration = generation
+            let fetched = await self.fetch(self.visibleProviders)
+            if generation == self.generation {
+                for result in fetched where self.isEnabled(result.provider) {
+                    self.results[result.provider] = result
+                }
+                self.onChange?()
+            }
+        } while self.refreshAgain
     }
 
-    func refresh(provider: UsageProvider) async {
-        guard self.isEnabled(provider) else { return }
-        let fetched = await ProviderFetch.fetch([provider])
-        guard self.isEnabled(provider), let result = fetched.first else { return }
-        self.results[provider] = result
-        self.onChange?()
+    private func fetch(_ providers: [UsageProvider]) async -> [ProviderFetchResult] {
+        // Automatic refresh, menu opening, and settings can ask for the same quota.
+        // Share only active requests; completed tasks and their response data are released.
+        let tasks = providers.map { provider in
+            if let task = self.inFlight[provider] { return task }
+            let credentials = self.configuration.credentials
+            let generation = self.generation
+            let task = Task {
+                let result = await ProviderFetch.fetch(provider, credentials: credentials)
+                if generation == self.generation { self.inFlight[provider] = nil }
+                return result
+            }
+            self.inFlight[provider] = task
+            return task
+        }
+        var fetched: [ProviderFetchResult] = []
+        for task in tasks {
+            fetched.append(await task.value)
+        }
+        return fetched
     }
 
     var menuBarPercent: Double? {

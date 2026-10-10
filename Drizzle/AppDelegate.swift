@@ -1,6 +1,5 @@
 import AppKit
 import Sparkle
-import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -11,7 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var cardItems: [NSMenuItem] = []
     private var actionsSeparator: NSMenuItem?
     private var isMenuOpen = false
-    private var settings: SettingsWindowController!
+    private var configuration: ConfigurationController!
     private var refreshTask: Task<Void, Never>?
     private lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: true,
@@ -20,13 +19,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        self.settings = SettingsWindowController(store: self.store)
+        self.installMainMenu()
+        self.configuration = ConfigurationController(store: self.store)
+        self.configuration.start()
+        self.configuration.onErrorChange = { [weak self] in
+            guard let self, self.isMenuOpen else { return }
+            self.rebuildMenu()
+        }
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.statusItem.button?.imagePosition = .imageLeft
         self.statusItem.button?.imageScaling = .scaleProportionallyDown
         self.menu.delegate = self
         self.menu.autoenablesItems = false
         self.statusItem.menu = self.menu
+        // Keep the updater's scheduled checks, but create menu views only while visible.
         self.rebuildMenu()
         self.store.onChange = { [weak self] in
             self?.updateIcon()
@@ -38,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.store.onRefreshIntervalChange = { [weak self] in
             self?.startRefreshLoop()
         }
+        self.store.onConfigurationChange = { [weak self] in
+            guard let self else { return }
+            self.updateIcon()
+            if self.isMenuOpen { self.rebuildMenu() }
+        }
         self.updateIcon()
         self.startRefreshLoop()
     }
@@ -45,8 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
-        self.settings.show()
+        self.configuration.open()
         return true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        self.refreshTask?.cancel()
+        self.configuration.stop()
     }
 
     private func startRefreshLoop() {
@@ -72,42 +88,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuDidClose(_ menu: NSMenu) {
         self.isMenuOpen = false
+        // Let AppKit finish its tracking/action transaction before detaching views.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.isMenuOpen else { return }
+            for item in self.cardItems {
+                item.view = nil
+                self.menu.removeItem(item)
+            }
+            for item in self.menu.items where item.view != nil {
+                item.view = nil
+                self.menu.removeItem(item)
+            }
+            self.switcher = nil
+            self.cardItems.removeAll()
+            self.actionsSeparator = nil
+        }
     }
 
     private func rebuildMenu() {
         self.menu.removeAllItems()
         self.cardItems.removeAll()
 
-        let width: CGFloat = 310
-        let switcher = ProviderSwitcherView(
-            providers: self.store.visibleProviders,
-            selected: self.store.selection,
-            includesOverview: true,
-            width: width,
-            showsIcons: true,
-            iconProvider: { ProviderBrandIcon.image(for: $0) ?? NSImage() },
-            weeklyRemainingProvider: { [weak self] provider in
-                if provider == .cursor {
-                    return self?.store.cursorAutoWindow?.remainingPercent
-                }
-                return self?.store.windows(for: provider).last?.remainingPercent
-            },
-            onSelect: { [weak self] selection in
-                guard let self else { return }
-                self.store.selection = selection
-                self.switcher?.updateSelection(selection)
-                self.rebuildCards()
-            })
-        self.switcher = switcher
-        let switcherItem = NSMenuItem()
-        switcherItem.title = ""
-        switcherItem.view = switcher
-        switcherItem.isEnabled = false
-        self.menu.addItem(switcherItem)
+        if self.isMenuOpen {
+            let width: CGFloat = 310
+            let switcher = ProviderSwitcherView(
+                providers: self.store.visibleProviders,
+                selected: self.store.selection,
+                includesOverview: true,
+                width: width,
+                showsIcons: true,
+                iconProvider: { ProviderBrandIcon.image(for: $0) ?? NSImage() },
+                weeklyRemainingProvider: { [weak self] provider in
+                    if provider == .cursor {
+                        return self?.store.cursorAutoWindow?.remainingPercent
+                    }
+                    return self?.store.windows(for: provider).last?.remainingPercent
+                },
+                onSelect: { [weak self] selection in
+                    guard let self else { return }
+                    self.store.selection = selection
+                    self.switcher?.updateSelection(selection)
+                    self.rebuildCards()
+                })
+            self.switcher = switcher
+            let switcherItem = NSMenuItem()
+            switcherItem.title = ""
+            switcherItem.view = switcher
+            switcherItem.isEnabled = false
+            self.menu.addItem(switcherItem)
+        }
 
         let separator = NSMenuItem.separator()
         self.actionsSeparator = separator
         self.menu.addItem(separator)
+        if let error = self.configuration.errorMessage {
+            let item = NSMenuItem(title: error, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            self.menu.addItem(item)
+        }
         self.menu.addItem(self.actionItem("刷新", #selector(refreshAction)))
         let updateItem = NSMenuItem(
             title: "检查更新…",
@@ -123,7 +161,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func rebuildCards() {
+        guard self.isMenuOpen else { return }
         for item in self.cardItems {
+            item.view = nil
             self.menu.removeItem(item)
         }
         self.cardItems.removeAll()
@@ -154,15 +194,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 updatedAt: result?.updatedAt,
                 balance: result?.balance,
                 balanceDetail: result?.balanceDetail)
-                .frame(width: 310, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            let hosting = NSHostingView(rootView: card)
-            hosting.frame = NSRect(x: 0, y: 0, width: 310, height: 1)
-            hosting.layoutSubtreeIfNeeded()
-            hosting.frame.size.height = max(1, ceil(hosting.fittingSize.height))
             let item = NSMenuItem()
             item.title = ""
-            item.view = hosting
+            item.view = card
             item.isEnabled = false
             self.menu.insertItem(item, at: index)
             self.cardItems.append(item)
@@ -182,12 +216,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
+    private func installMainMenu() {
+        let main = NSMenu()
+        let application = NSMenuItem()
+        let commands = NSMenu(title: "Drizzle")
+        commands.addItem(self.actionItem("关于 Drizzle", #selector(aboutAction)))
+        commands.addItem(self.actionItem("设置…", #selector(settingsAction)))
+        commands.addItem(.separator())
+        commands.addItem(self.actionItem("退出", #selector(quitAction)))
+        application.submenu = commands
+        main.addItem(application)
+
+        NSApp.mainMenu = main
+    }
+
     @objc private func refreshAction() {
         Task { await self.store.refresh() }
     }
 
     @objc private func settingsAction() {
-        self.settings.show()
+        self.configuration.open()
     }
 
     @objc private func aboutAction() {

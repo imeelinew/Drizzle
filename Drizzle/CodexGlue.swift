@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 func L(_ key: String) -> String {
     NSLocalizedString(key, tableName: nil, bundle: .main, value: key, comment: "")
@@ -46,8 +45,8 @@ struct ProviderColor {
     let green: Double
     let blue: Double
 
-    var swiftUI: Color {
-        Color(red: self.red, green: self.green, blue: self.blue)
+    var nsColor: NSColor {
+        NSColor(srgbRed: self.red, green: self.green, blue: self.blue, alpha: 1)
     }
 }
 

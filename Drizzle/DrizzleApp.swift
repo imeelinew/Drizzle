@@ -1,12 +1,16 @@
-import SwiftUI
+import AppKit
 
 @main
-struct DrizzleApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-
-    var body: some Scene {
-        Settings {
-            EmptyView()
+enum DrizzleApp {
+    @MainActor
+    static func main() {
+        autoreleasepool {
+            let application = NSApplication.shared
+            let delegate = AppDelegate()
+            application.delegate = delegate
+            withExtendedLifetime(delegate) {
+                application.run()
+            }
         }
     }
 }

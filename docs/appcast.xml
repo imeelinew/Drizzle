@@ -5,6 +5,14 @@
     <link>https://github.com/imeelinew/Drizzle/releases</link>
     <description>Drizzle 应用更新</description>
     <item>
+      <title>0.1.1</title>
+      <pubDate>Sat, 10 Oct 2026 08:43:54 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/imeelinew/Drizzle/releases/download/v0.1.1/Drizzle-0.1.1.zip" length="2997810" type="application/octet-stream" sparkle:edSignature="aV6X9pLMhd0bTKio5LJfUcL4CifokBpaDi7JVY5lQ9zg0wCeesKNEjEjDU2UHSrGM7zgvkLkT+cQz4Be6HvFAw==" />
+    </item>
+    <item>
       <title>0.1.0</title>
       <pubDate>Fri, 25 Sep 2026 11:32:03 +0000</pubDate>
       <sparkle:version>5</sparkle:version>

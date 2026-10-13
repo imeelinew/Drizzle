@@ -28,6 +28,8 @@ struct DrizzleConfiguration: Codable, Equatable, Sendable {
         var zaiRegion = "global"
         var openRouterKey = ""
         var openCodeGoKey = ""
+        var openCodeGoCookie = ""
+        var openCodeGoWorkspaceID = ""
         var deepSeekKey = ""
 
         init() {}
@@ -40,11 +42,13 @@ struct DrizzleConfiguration: Codable, Equatable, Sendable {
             self.zaiRegion = try values.decodeIfPresent(String.self, forKey: .zaiRegion) ?? self.zaiRegion
             self.openRouterKey = try values.decodeIfPresent(String.self, forKey: .openRouterKey) ?? self.openRouterKey
             self.openCodeGoKey = try values.decodeIfPresent(String.self, forKey: .openCodeGoKey) ?? self.openCodeGoKey
+            self.openCodeGoCookie = try values.decodeIfPresent(String.self, forKey: .openCodeGoCookie) ?? self.openCodeGoCookie
+            self.openCodeGoWorkspaceID = try values.decodeIfPresent(String.self, forKey: .openCodeGoWorkspaceID) ?? self.openCodeGoWorkspaceID
             self.deepSeekKey = try values.decodeIfPresent(String.self, forKey: .deepSeekKey) ?? self.deepSeekKey
         }
 
         private enum CodingKeys: String, CodingKey, CaseIterable {
-            case cursorCookie, zaiKey, zaiRegion, openRouterKey, openCodeGoKey, deepSeekKey
+            case cursorCookie, zaiKey, zaiRegion, openRouterKey, openCodeGoKey, openCodeGoCookie, openCodeGoWorkspaceID, deepSeekKey
         }
     }
 

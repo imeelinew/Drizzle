@@ -22,6 +22,8 @@
     "zaiRegion": "global",
     "openRouterKey": "",
     "openCodeGoKey": "",
+    "openCodeGoCookie": "",
+    "openCodeGoWorkspaceID": "",
     "deepSeekKey": ""
   }
 }

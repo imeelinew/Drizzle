@@ -27,6 +27,14 @@ xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Debug -dest
 
 Codex 和 Claude 继续读取本地登录，Cursor Cookie 留空时读取 Cursor 本地登录，OpenCode Go 和 DeepSeek 的 API key 留空时继续读取原来支持的环境变量，z.ai 和 OpenRouter 需要在文件中填写 API key
 
+OpenCode Go 支持两种认证方式，额度请求与解析移植自 CodexBar（`664311fc8`）：
+
+- API：填写 `credentials.openCodeGoKey`，留空时读取 `OPENCODE_API_KEY`，显示 API 返回的 5 小时、周和月额度。
+- Console：填写 `credentials.openCodeGoCookie`，支持 Cookie 请求头或浏览器复制的 cURL 请求，必须包含 `__Host-console_session`。此项非空时优先使用 Console，失效时会显示错误，请重新登录 [OpenCode Console](https://opencode.ai/console) 并更新 Cookie。
+- `credentials.openCodeGoWorkspaceID`：可选的 `org_…` 或 `wrk_…` 工作区 ID，留空时与 CodexBar 一样使用工作区列表中的第一个；多工作区账号建议明确填写订阅所在工作区。
+
+Console 路径读取账户实时额度，月额度重置时间在接口未提供时使用订阅周期结束时间。只显示接口实际提供的额度窗口，不读取本地用量或费用历史。
+
 | 供应商 | `menuBar.metric` |
 | --- | --- |
 | `codex`、`claude`、`zai` | `session`、`weekly` |

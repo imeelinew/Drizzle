@@ -32,7 +32,9 @@ enum ProviderFetch {
         case .cursor: await self.cursor(cookie: credentials.cursorCookie)
         case .zai: await self.zai(apiKey: credentials.zaiKey, region: credentials.zaiRegion)
         case .openrouter: await self.openrouter(apiKey: credentials.openRouterKey)
-        case .opencodego: await self.openCodeGo(apiKey: credentials.openCodeGoKey)
+        case .opencodego: await self.openCodeGo(
+            apiKey: credentials.openCodeGoKey, cookie: credentials.openCodeGoCookie,
+            workspaceID: credentials.openCodeGoWorkspaceID)
         case .deepseek: await self.deepSeek(apiKey: credentials.deepSeekKey)
         }
     }
@@ -254,14 +256,18 @@ enum ProviderFetch {
     }
 
     // Adapted from CodexBar's OpenCodeGoUsageFetcher.fetchAPIUsage / parseAPIUsage.
-    static func openCodeGo(apiKey: String) async -> ProviderFetchResult {
+    static func openCodeGo(apiKey: String, cookie: String = "", workspaceID: String = "") async -> ProviderFetchResult {
+        if !cookie.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return await self.openCodeGoConsole(cookie: cookie, workspaceID: workspaceID)
+        }
         guard let apiKey = self.apiKey(manual: apiKey, environmentKeys: ["OPENCODE_API_KEY"]) else {
-            return self.failure(.opencodego, "在设置里填写 OpenCode Go API key")
+            return self.failure(.opencodego, "在配置文件中填写 OpenCode Go API key 或 Console Cookie")
         }
         do {
             var request = URLRequest(url: URL(string: "https://opencode.ai/zen/go/v1/usage")!)
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("Drizzle", forHTTPHeaderField: "User-Agent")
             let body = try await self.json(request)
             guard let usage = body["usage"] as? [String: Any],
                   let rolling = usage["rolling"] as? [String: Any]
@@ -285,7 +291,99 @@ enum ProviderFetch {
         }
     }
 
-    private static func openCodeGoWindow(_ raw: [String: Any], minutes: Int, now: Date) throws -> RateWindow {
+    // Adapted from CodexBar 664311fc8, OpenCodeGoUsageFetcher Console API methods.
+    // Keep account quotas live; do not infer them from local token/cost history.
+    private static func openCodeGoConsole(cookie: String, workspaceID: String) async -> ProviderFetchResult {
+        do {
+            guard let cookie = CookieHeaderNormalizer.filteredHeader(
+                from: cookie, allowedNames: ["__Host-console_session"]) else {
+                throw ProviderFetchError.missing("OpenCode Go Cookie 缺少 __Host-console_session")
+            }
+            var workspaceID = workspaceID.trimmingCharacters(in: .whitespacesAndNewlines)
+            if workspaceID.isEmpty {
+                let data = try await self.openCodeGoConsoleData(path: "orgs", cookie: cookie, workspaceID: nil)
+                guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                      let first = rows.compactMap({ $0["id"] as? String }).first(where: self.isOpenCodeWorkspaceID)
+                else { throw ProviderFetchError.missing("找不到 OpenCode Go 工作区") }
+                workspaceID = first
+            }
+            guard self.isOpenCodeWorkspaceID(workspaceID) else {
+                throw ProviderFetchError.missing("OpenCode Go 工作区 ID 无效，需为 org_ 或 wrk_ 开头的 ID")
+            }
+            let data = try await self.openCodeGoConsoleData(path: "go/status", cookie: cookie, workspaceID: workspaceID)
+            let object = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+            if object is NSNull || (object as? [String: Any])?["access"] is NSNull {
+                throw ProviderFetchError.missing("此工作区没有 OpenCode Go 订阅")
+            }
+            guard let root = object as? [String: Any],
+                  let access = root["access"] as? [String: Any],
+                  let meters = access["meters"] as? [String: Any],
+                  let rolling = meters["fiveHour"] as? [String: Any]
+            else { throw ProviderFetchError.missing("OpenCode Go Console 额度格式无效") }
+            let now = Date.now
+            var windows = [try self.openCodeGoWindow(rolling, minutes: 300, now: now, dashboard: true)]
+            var titles = ["5 小时"]
+            for (key, minutes, title) in [("week", 10080, "周额度"), ("month", 43200, "月额度")] {
+                guard var meter = meters[key] as? [String: Any] else { continue }
+                // Console month meters omit the reset date; use the subscription period end.
+                if key == "month", meter["resetsAt"] == nil || meter["resetsAt"] is NSNull {
+                    meter["resetsAt"] = access["endsAt"]
+                }
+                // Match upstream: malformed monthly data must not discard the other meters.
+                do {
+                    windows.append(try self.openCodeGoWindow(meter, minutes: minutes, now: now, dashboard: true))
+                    titles.append(title)
+                } catch {
+                    if key != "month" { throw error }
+                }
+            }
+            return ProviderFetchResult(
+                provider: .opencodego, plan: "Go", windows: windows, windowTitles: titles,
+                message: nil, updatedAt: now)
+        } catch {
+            return self.failure(.opencodego, error.localizedDescription)
+        }
+    }
+
+    private static func isOpenCodeWorkspaceID(_ value: String) -> Bool {
+        value.range(of: #"^(?:wrk_|org_)[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil
+    }
+
+    private static func openCodeGoConsoleData(path: String, cookie: String, workspaceID: String?) async throws -> Data {
+        var request = URLRequest(url: URL(string: "https://opencode.ai/console/api/\(path)")!)
+        request.timeoutInterval = 30
+        request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
+        if let workspaceID { request.setValue(workspaceID, forHTTPHeaderField: "x-org-id") }
+        let (data, response) = try await self.openCodeSession.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            if status == 401 {
+                throw ProviderFetchError.missing("OpenCode Go Cookie 无效或已过期，请重新登录 Console 并更新 Cookie")
+            }
+            throw ProviderFetchError.http(status)
+        }
+        return data
+    }
+
+    // Match CodexBar's credential redirect boundary for OpenCode requests.
+    private final class OpenCodeRedirectGuard: NSObject, URLSessionTaskDelegate {
+        func urlSession(
+            _ session: URLSession, task: URLSessionTask,
+            willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+            completionHandler: @escaping (URLRequest?) -> Void)
+        {
+            completionHandler(request.url?.scheme == "https" && request.url?.host == "opencode.ai" ? request : nil)
+        }
+    }
+
+    private static let openCodeSession = URLSession(
+        configuration: session.configuration, delegate: OpenCodeRedirectGuard(), delegateQueue: nil)
+
+    private static func openCodeGoWindow(
+        _ raw: [String: Any], minutes: Int, now: Date, dashboard: Bool = false) throws -> RateWindow
+    {
         // API percentages are already 0...100, unlike some dashboard hydration payloads.
         let direct = self.firstNumber(raw, keys: [
             "usagePercent", "usedPercent", "percentUsed", "percent", "usage_percent", "used_percent",
@@ -293,9 +391,10 @@ enum ProviderFetch {
         ])
         let used = self.firstNumber(raw, keys: ["used", "usage", "consumed", "count", "usedTokens", "usedMicroCents"])
         let limit = self.firstNumber(raw, keys: ["limit", "total", "quota", "max", "cap", "tokenLimit", "limitMicroCents"])
-        guard let percent = direct ?? self.ratio(used: used, limit: limit) else {
+        guard var percent = direct ?? self.ratio(used: used, limit: limit) else {
             throw ProviderFetchError.missing("OpenCode Go 额度格式无效")
         }
+        if dashboard, direct != nil, (0...1).contains(percent) { percent *= 100 }
         let resetIn = self.firstNumber(raw, keys: [
             "resetInSec", "resetInSeconds", "resetSeconds", "reset_sec", "reset_in_sec",
             "resetsInSec", "resetsInSeconds", "resetIn", "resetSec",
@@ -676,5 +775,101 @@ private enum CursorCredential {
             throw ProviderFetchError.missing("Cursor 登录已过期，请重新登录")
         }
         return "WorkosCursorSessionToken=\(userID)%3A%3A\(accessToken)"
+    }
+}
+
+// From CodexBar 664311fc8: normalize pasted Cookie headers and cURL requests.
+private enum CookieHeaderNormalizer {
+    private static let headerPatterns: [String] = [
+        #"(?i)-H\s*'Cookie:\s*([^']+)'"#,
+        #"(?i)-H\s*\"Cookie:\s*([^\"]+)\""#,
+        #"(?i)\bcookie:\s*'([^']+)'"#,
+        #"(?i)\bcookie:\s*\"([^\"]+)\""#,
+        #"(?i)\bcookie:\s*([^\r\n]+)"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s*'([^']+)'"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s*\"([^\"]+)\""#,
+        #"(?i)(?:^|\s)-b([^\s=]+=[^\s]+)"#,
+        #"(?i)(?:^|\s)(?:--cookie|-b)\s+([^\s]+)"#,
+    ]
+
+    static func normalize(_ raw: String?) -> String? {
+        self.normalize(raw, headerPatterns: self.headerPatterns)
+    }
+
+    static func normalize(_ raw: String?, headerPatterns: [String]) -> String? {
+        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+
+        if let extracted = self.extractHeader(from: value, patterns: headerPatterns) {
+            value = extracted
+        }
+
+        value = self.stripCookiePrefix(value)
+        value = self.stripWrappingQuotes(value)
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return value.isEmpty ? nil : value
+    }
+
+    static func pairs(from raw: String) -> [(name: String, value: String)] {
+        guard let normalized = self.normalize(raw) else { return [] }
+        var results: [(name: String, value: String)] = []
+        results.reserveCapacity(6)
+
+        for part in normalized.split(separator: ";") {
+            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty,
+                  let equalsIndex = trimmed.firstIndex(of: "=")
+            else {
+                continue
+            }
+            let name = trimmed[..<equalsIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = trimmed[trimmed.index(after: equalsIndex)...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            results.append((name: String(name), value: String(value)))
+        }
+
+        return results
+    }
+
+    static func filteredHeader(from raw: String?, allowedNames: Set<String>) -> String? {
+        let filtered = self.pairs(from: raw ?? "").filter { allowedNames.contains($0.name) }
+        guard !filtered.isEmpty else { return nil }
+        return filtered.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+    }
+
+    static func extractHeader(from raw: String, patterns: [String]) -> String? {
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { continue }
+            let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
+            guard let match = regex.firstMatch(in: raw, options: [], range: range),
+                  match.numberOfRanges >= 2,
+                  let captureRange = Range(match.range(at: 1), in: raw)
+            else {
+                continue
+            }
+            let captured = raw[captureRange].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !captured.isEmpty { return String(captured) }
+        }
+        return nil
+    }
+
+    private static func stripCookiePrefix(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.lowercased().hasPrefix("cookie:") else { return trimmed }
+        let idx = trimmed.index(trimmed.startIndex, offsetBy: "cookie:".count)
+        return String(trimmed[idx...]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func stripWrappingQuotes(_ raw: String) -> String {
+        guard raw.count >= 2 else { return raw }
+        if (raw.hasPrefix("\"") && raw.hasSuffix("\"")) ||
+            (raw.hasPrefix("'") && raw.hasSuffix("'"))
+        {
+            return String(raw.dropFirst().dropLast())
+        }
+        return raw
     }
 }

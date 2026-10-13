@@ -154,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateItem.target = self.updaterController
         updateItem.isEnabled = self.updaterController.updater.canCheckForUpdates
         self.menu.addItem(updateItem)
-        self.menu.addItem(self.actionItem("设置…", #selector(settingsAction)))
+        self.menu.addItem(self.actionItem("配置文件...", #selector(settingsAction)))
         self.menu.addItem(self.actionItem("关于 Drizzle", #selector(aboutAction)))
         self.menu.addItem(self.actionItem("退出", #selector(quitAction)))
         self.rebuildCards()
@@ -221,7 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let application = NSMenuItem()
         let commands = NSMenu(title: "Drizzle")
         commands.addItem(self.actionItem("关于 Drizzle", #selector(aboutAction)))
-        commands.addItem(self.actionItem("设置…", #selector(settingsAction)))
+        commands.addItem(self.actionItem("配置文件...", #selector(settingsAction)))
         commands.addItem(.separator())
         commands.addItem(self.actionItem("退出", #selector(quitAction)))
         application.submenu = commands

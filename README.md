@@ -12,7 +12,7 @@ xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Debug -dest
 
 ## 设置
 
-点击菜单中的“设置…”会用默认 JSON 编辑器打开 `~/Library/Application Support/Drizzle/config.json`，没有文件关联时使用 TextEdit，Drizzle 不创建设置窗口
+点击菜单中的“配置文件...”会用默认 JSON 编辑器打开 `~/Library/Application Support/Drizzle/config.json`，没有文件关联时使用 TextEdit，Drizzle 不创建设置窗口
 
 第一次启动此版本会创建配置文件并迁移现有设置和凭据，之后以这个文件为准，保存后自动生效，无需重启，完整示例见 [docs/config.example.json](docs/config.example.json)
 

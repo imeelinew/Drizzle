@@ -11,6 +11,8 @@ installed_app="/Applications/${app_name}.app"
 
 cd "$repo_root"
 
+built_app=$(python3 "$script_dir/xcode-path.py" Release)
+
 if pgrep -xq "$app_name"; then
     print "Quitting $app_name"
     osascript -e "tell application \"$app_name\" to quit" >/dev/null || true
@@ -32,16 +34,7 @@ xcodebuild \
     -configuration Release \
     build
 
-built_products_dir=$(xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Release -showBuildSettings 2>/dev/null | awk '
-    !found && /^[[:space:]]*BUILT_PRODUCTS_DIR = / {
-        sub(/^[[:space:]]*BUILT_PRODUCTS_DIR = /, "")
-        directory = $0
-        found = 1
-    }
-    END { print directory }
-')
-built_app="${built_products_dir}/${app_name}.app"
-[[ -n "$built_products_dir" && -d "$built_app" ]] || {
+[[ -d "$built_app" ]] || {
     print -u2 "Built app not found: $built_app"
     exit 70
 }

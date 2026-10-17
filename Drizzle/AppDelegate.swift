@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.installMainMenu()
         self.configuration = ConfigurationController(store: self.store)
         self.configuration.start()
-        self.configuration.onErrorChange = { [weak self] in
+        self.configuration.onStatusChange = { [weak self] in
             guard let self, self.isMenuOpen else { return }
             self.rebuildMenu()
         }
@@ -143,6 +143,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.menu.addItem(separator)
         if let error = self.configuration.errorMessage {
             let item = NSMenuItem(title: error, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            self.menu.addItem(item)
+        }
+        if let warning = self.configuration.warningMessage {
+            let item = NSMenuItem(title: warning, action: nil, keyEquivalent: "")
             item.isEnabled = false
             self.menu.addItem(item)
         }

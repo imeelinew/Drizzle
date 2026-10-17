@@ -38,6 +38,7 @@
 		F5A470CC8463E92B47F0AC3F /* ProviderIcon-openrouter.svg in Resources */ = {isa = PBXBuildFile; fileRef = FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */; };
 		A20000000000000000000001 /* ProviderIcon-opencodego.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ProviderIcon-opencodego.svg */; };
 		A20000000000000000000003 /* ProviderIcon-deepseek.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* ProviderIcon-deepseek.svg */; };
+		A30000000000000000000001 /* TOML.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* TOML.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +48,7 @@
 		1DB3042E408D8D08D7B3C4E1 /* Drizzle.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Drizzle.icon; sourceTree = SOURCE_ROOT; };
 		1FD66369594E7E85450AD3B0 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		2144C72C470F6E3703317579 /* DrizzleConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrizzleConfiguration.swift; sourceTree = "<group>"; };
+		A30000000000000000000002 /* TOML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOML.swift; sourceTree = "<group>"; };
 		25830DD33D6776A572F4FDEA /* Drizzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Drizzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C82F225453874E6AF93D2D4 /* DrizzleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrizzleStore.swift; sourceTree = "<group>"; };
 		51638F3F017BA22017D08AE9 /* ProviderIcon-claude.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-claude.svg"; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 				712D78EF24925B8802A5AC2D /* ProviderSwitcherButtons.swift */,
 				AC8504334CEB7370F26F37C0 /* ProviderSwitcherView.swift */,
 				EBD85BA3FC7E80D20B67CB93 /* QuotaMenu.swift */,
+				A30000000000000000000002 /* TOML.swift */,
 				2144C72C470F6E3703317579 /* DrizzleConfiguration.swift */,
 				6E0FD5C0F0A2707F7A11D2DA /* UsageFormatter.swift */,
 				E3A2B1B3E3A45269AA9C8208 /* UsageMenuCardLayout.swift */,
@@ -249,6 +252,7 @@
 				24B4B004BA370A151F73DE07 /* ProviderSwitcherView.swift in Sources */,
 				940BE6957BAE4AF09F2AC848 /* QuotaMenu.swift in Sources */,
 				8D1D22DBE2ABC52085E878A3 /* DrizzleConfiguration.swift in Sources */,
+				A30000000000000000000001 /* TOML.swift in Sources */,
 				DE15730C91EFE5F6881DBDC4 /* UsageFormatter.swift in Sources */,
 				443BE169D9FA406C4D14AE60 /* UsageMenuCardLayout.swift in Sources */,
 				D9F27CECDFCE56646B6D0968 /* UsageMenuCardMetric.swift in Sources */,

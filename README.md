@@ -12,9 +12,11 @@ xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Debug -dest
 
 ## 设置
 
-点击菜单中的“配置文件...”会用默认 JSON 编辑器打开 `~/Library/Application Support/Drizzle/config.json`，没有文件关联时使用 TextEdit，Drizzle 不创建设置窗口
+点击菜单中的“配置文件...”会用 [CotEditor](https://coteditor.com) 打开 `~/Library/Application Support/Drizzle/config.toml`，未安装时使用系统默认的 TOML 编辑器，没有文件关联时使用 TextEdit，Drizzle 不创建设置窗口
 
-第一次启动此版本会创建配置文件并迁移现有设置和凭据，之后以这个文件为准，保存后自动生效，无需重启，完整示例见 [docs/config.example.json](docs/config.example.json)
+第一次启动会创建配置文件，里面带着全部字段和注释，删除任意一行就会恢复该项的默认值，保存后自动生效，无需重启，完整示例见 [docs/config.example.toml](docs/config.example.toml)
+
+从旧版本升级时，如果只有原来的 `config.json`，第一次启动会读取其中的设置和凭据写出 `config.toml`，然后删除旧的 `config.json`，之后以 `config.toml` 为准
 
 - `launchAtLogin`：是否登录时启动
 - `refreshIntervalSeconds`：刷新间隔，支持 `0`（手动）、`60`、`300`、`900`、`1800`
@@ -44,7 +46,7 @@ Console 路径读取账户实时额度，月额度重置时间在接口未提供
 | `opencodego` | `session`、`weekly`、`monthly` |
 | `deepseek` | `balance` |
 
-配置使用标准 JSON，不支持注释，遗漏字段使用示例中的默认值，未知字段、错误类型或无效选项会拒绝加载，运行期间写错时继续使用上一次有效配置，并在菜单中显示错误，修正保存后自动恢复
+配置使用 TOML，支持 `#` 注释、`[配置段]`、多行数组和尾随逗号，字符串可以用 `"…"`、`'…'` 或 `"""…"""`（粘贴 cURL 时很有用）。解析器只实现配置需要的语法，行内表、数组表、浮点数和日期都会报错并指出行号。遗漏字段使用默认值，未知字段会被忽略，并在菜单里提示行号；值类型或取值错误会拒绝加载，运行期间写错时继续使用上一次有效配置，并在菜单中显示错误，修正保存后自动恢复
 
 配置文件包含凭据，创建时目录权限为 `700`，文件权限为 `600`，仅当前用户可访问，应用不会在错误信息中输出凭据
 

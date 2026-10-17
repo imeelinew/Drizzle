@@ -1,0 +1,46 @@
+# Drizzle 配置文件
+# 保存后立即生效，无需重启；写错时继续使用上一次的有效配置，并在菜单里显示原因
+# 每一行都可以删掉，删掉的字段使用默认值
+
+# 登录时自动启动
+launchAtLogin = false
+
+# 自动刷新间隔（秒），可选 0（手动）、60、300、900、1800
+refreshIntervalSeconds = 60
+
+# 打开菜单时是否立即刷新
+refreshOnOpen = true
+
+# 开启的供应商，空数组表示全部关闭
+enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+
+# 菜单中供应商从上到下的顺序，未列出的已开启供应商按默认顺序排在后面
+providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+
+[menuBar]
+# 菜单栏显示哪个供应商
+provider = "codex"
+# 显示哪项额度：codex、claude、zai 用 session 或 weekly
+# cursor 用 total、cursor、thirdParty、grokBot，openrouter 用 keyLimit
+# opencodego 用 session、weekly、monthly，deepseek 用 balance
+metric = "session"
+# remaining 显示剩余，used 显示已使用
+percentMode = "remaining"
+
+[credentials]
+# Cursor Cookie，留空则读取 Cursor 本地登录
+cursorCookie = ""
+# z.ai API key
+zaiKey = ""
+# global 或 bigmodel-cn
+zaiRegion = "global"
+# OpenRouter API key
+openRouterKey = ""
+# OpenCode Go：填 key 走 API，留空则读取 OPENCODE_API_KEY
+openCodeGoKey = ""
+# OpenCode Go：填 Cookie 走 Console，与上面的 key 同时填写时优先使用 Cookie
+openCodeGoCookie = ""
+# 可选，org_… 或 wrk_…，留空使用第一个工作区
+openCodeGoWorkspaceID = ""
+# DeepSeek API key，留空则读取 DEEPSEEK_API_KEY 或 DEEPSEEK_KEY
+deepSeekKey = ""

@@ -127,7 +127,18 @@ final class DrizzleStore {
     }
 
     var visibleProviders: [UsageProvider] {
-        UsageProvider.allCases.filter { self.enabledProviders.contains($0) }
+        let enabled = self.enabledProviders
+        // `providerOrder` wins; enabled providers it leaves out follow in the default registry order.
+        var ordered: [UsageProvider] = []
+        for rawValue in self.configuration.providerOrder {
+            guard let provider = UsageProvider(rawValue: rawValue),
+                  enabled.contains(provider),
+                  !ordered.contains(provider)
+            else { continue }
+            ordered.append(provider)
+        }
+        ordered.append(contentsOf: UsageProvider.allCases.filter { enabled.contains($0) && !ordered.contains($0) })
+        return ordered
     }
 
     func isEnabled(_ provider: UsageProvider) -> Bool {

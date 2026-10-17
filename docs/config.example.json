@@ -11,6 +11,15 @@
     "opencodego",
     "deepseek"
   ],
+  "providerOrder": [
+    "codex",
+    "claude",
+    "cursor",
+    "zai",
+    "openrouter",
+    "opencodego",
+    "deepseek"
+  ],
   "menuBar": {
     "provider": "codex",
     "metric": "session",

@@ -20,6 +20,7 @@ xcodebuild -project Drizzle.xcodeproj -scheme Drizzle -configuration Debug -dest
 - `refreshIntervalSeconds`：刷新间隔，支持 `0`（手动）、`60`、`300`、`900`、`1800`
 - `refreshOnOpen`：是否打开菜单时刷新
 - `enabledProviders`：开启的供应商，空数组表示全部关闭，列表顺序不影响菜单中的既有顺序
+- `providerOrder`：供应商在菜单中从上到下的排列顺序，切换标签与额度卡片都按这个顺序显示；未列出的已开启供应商按默认顺序排在后面，列出的未开启供应商会被忽略
 - `menuBar.provider`：菜单栏显示哪个供应商
 - `menuBar.metric`：显示该供应商的哪项额度，取值见下表
 - `menuBar.percentMode`：`remaining`（剩余）或 `used`（已使用），余额显示不受此项影响

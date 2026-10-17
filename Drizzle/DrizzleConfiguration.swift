@@ -56,6 +56,9 @@ struct DrizzleConfiguration: Codable, Equatable, Sendable {
     var refreshIntervalSeconds = 60
     var refreshOnOpen = true
     var enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+    /// Switcher tab and quota card order. Providers left out keep their default position, so the
+    /// list can be shortened or extended without listing every provider.
+    var providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
     var menuBar = MenuBar()
     var credentials = Credentials()
 
@@ -68,12 +71,13 @@ struct DrizzleConfiguration: Codable, Equatable, Sendable {
         self.refreshIntervalSeconds = try values.decodeIfPresent(Int.self, forKey: .refreshIntervalSeconds) ?? self.refreshIntervalSeconds
         self.refreshOnOpen = try values.decodeIfPresent(Bool.self, forKey: .refreshOnOpen) ?? self.refreshOnOpen
         self.enabledProviders = try values.decodeIfPresent([String].self, forKey: .enabledProviders) ?? self.enabledProviders
+        self.providerOrder = try values.decodeIfPresent([String].self, forKey: .providerOrder) ?? self.providerOrder
         self.menuBar = try values.decodeIfPresent(MenuBar.self, forKey: .menuBar) ?? self.menuBar
         self.credentials = try values.decodeIfPresent(Credentials.self, forKey: .credentials) ?? self.credentials
     }
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
-        case launchAtLogin, refreshIntervalSeconds, refreshOnOpen, enabledProviders, menuBar, credentials
+        case launchAtLogin, refreshIntervalSeconds, refreshOnOpen, enabledProviders, providerOrder, menuBar, credentials
     }
 
     func validate() throws {
@@ -83,6 +87,10 @@ struct DrizzleConfiguration: Codable, Equatable, Sendable {
         guard self.enabledProviders.allSatisfy({ UsageProvider(rawValue: $0) != nil }),
               Set(self.enabledProviders).count == self.enabledProviders.count else {
             throw ConfigurationError.invalid("enabledProviders 包含未知或重复的供应商")
+        }
+        guard self.providerOrder.allSatisfy({ UsageProvider(rawValue: $0) != nil }),
+              Set(self.providerOrder).count == self.providerOrder.count else {
+            throw ConfigurationError.invalid("providerOrder 包含未知或重复的供应商")
         }
         guard let provider = UsageProvider(rawValue: self.menuBar.provider) else {
             throw ConfigurationError.invalid("menuBar.provider 无效")

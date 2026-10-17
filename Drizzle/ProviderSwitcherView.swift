@@ -114,9 +114,7 @@ final class ProviderSwitcherView: NSView {
                     image: segment.image,
                     target: self,
                     action: #selector(self.handleSelection(_:)))
-                if self.rowCount >= 4 {
-                    stacked.setTitleFontSize(NSFont.smallSystemFontSize - 3)
-                }
+                stacked.setTitleFontSize(Self.stackedTitlePointSize(rowCount: self.rowCount))
                 button = stacked
             } else if self.showsIcons {
                 let inline = InlineIconToggleButton(
@@ -182,18 +180,11 @@ final class ProviderSwitcherView: NSView {
             minimumGap: minimumGap,
             requiredSegmentWidth: requiredUniformWidth)
 
-        let uniformWidth: CGFloat
-        if self.rowCount > 1 || !self.stackedIcons {
-            uniformWidth = self.applyUniformSegmentWidth(maxAllowedWidth: layoutMetrics.maxAllowedSegmentWidth)
-            if uniformWidth > 0 {
-                self.segmentWidths = Array(repeating: uniformWidth, count: self.buttons.count)
-            }
-        } else {
-            self.segmentWidths = self.applyNonUniformSegmentWidths(
-                totalWidth: width,
-                outerPadding: layoutMetrics.outerPadding,
-                minimumGap: minimumGap)
-            uniformWidth = 0
+        // Every segment shares one width so the row reads as an even grid, and the row still fills the
+        // menu width exactly: uniform widths keep the popover as narrow as the widest title allows.
+        let uniformWidth = self.applyUniformSegmentWidth(maxAllowedWidth: layoutMetrics.maxAllowedSegmentWidth)
+        if uniformWidth > 0 {
+            self.segmentWidths = Array(repeating: uniformWidth, count: self.buttons.count)
         }
 
         self.applyLayout(
@@ -566,6 +557,11 @@ final class ProviderSwitcherView: NSView {
         return rowCount >= 3 ? 39 : 36
     }
 
+    /// The title size a `StackedToggleButton` renders with, shared with `makeButton`.
+    private static func stackedTitlePointSize(rowCount: Int) -> CGFloat {
+        rowCount >= 4 ? NSFont.smallSystemFontSize - 3 : NSFont.smallSystemFontSize - 2
+    }
+
     private static func switcherOuterPadding(
         for width: CGFloat,
         count: Int,
@@ -759,7 +755,7 @@ final class ProviderSwitcherView: NSView {
             if self.stackedIcons,
                self.segments.indices.contains(index)
             {
-                let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+                let font = NSFont.systemFont(ofSize: Self.stackedTitlePointSize(rowCount: self.rowCount))
                 let titleWidth = ceil(
                     (self.segments[index].title as NSString).size(withAttributes: [.font: font])
                         .width)
@@ -789,75 +785,6 @@ final class ProviderSwitcherView: NSView {
         }
 
         return finalWidth
-    }
-
-    @discardableResult
-    private func applyNonUniformSegmentWidths(
-        totalWidth: CGFloat,
-        outerPadding: CGFloat,
-        minimumGap: CGFloat) -> [CGFloat]
-    {
-        guard !self.buttons.isEmpty else { return [] }
-
-        let count = self.buttons.count
-        let available = totalWidth -
-            outerPadding * 2 -
-            minimumGap * CGFloat(max(0, count - 1))
-        guard available > 0 else { return [] }
-
-        func evenFloor(_ value: CGFloat) -> CGFloat {
-            var v = floor(value)
-            if Int(v) % 2 != 0 { v -= 1 }
-            return v
-        }
-
-        let desired = self.buttons.map { ceil(Self.maxToggleWidth(for: $0)) }
-        let desiredSum = desired.reduce(0, +)
-        let avg = floor(available / CGFloat(count))
-        let minWidth = max(24, min(40, avg))
-
-        var widths: [CGFloat]
-        if desiredSum <= available {
-            widths = desired
-        } else {
-            let totalCapacity = max(0, desiredSum - minWidth * CGFloat(count))
-            if totalCapacity <= 0 {
-                widths = Array(repeating: available / CGFloat(count), count: count)
-            } else {
-                let overflow = desiredSum - available
-                widths = desired.map { desiredWidth in
-                    let capacity = max(0, desiredWidth - minWidth)
-                    let shrink = overflow * (capacity / totalCapacity)
-                    return desiredWidth - shrink
-                }
-            }
-        }
-
-        widths = widths.map { max(minWidth, evenFloor($0)) }
-        var used = widths.reduce(0, +)
-
-        while available - used >= 2 {
-            if let best = widths.indices
-                .filter({ desired[$0] - widths[$0] >= 2 })
-                .max(by: { lhs, rhs in
-                    (desired[lhs] - widths[lhs]) < (desired[rhs] - widths[rhs])
-                })
-            {
-                widths[best] += 2
-                used += 2
-                continue
-            }
-
-            guard let best = widths.indices.min(by: { lhs, rhs in widths[lhs] < widths[rhs] }) else { break }
-            widths[best] += 2
-            used += 2
-        }
-
-        for (index, button) in self.buttons.enumerated() where index < widths.count {
-            button.widthAnchor.constraint(equalToConstant: widths[index]).isActive = true
-        }
-
-        return widths
     }
 
     private static func maxAllowedUniformSegmentWidth(

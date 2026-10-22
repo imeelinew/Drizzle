@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum RefreshInterval: Int, CaseIterable, Identifiable {
     case manual = 0
@@ -86,6 +87,61 @@ final class DrizzleStore {
     private var refreshingGeneration = 0
     private var refreshAgain = false
 
+    private struct Snapshot: Codable {
+        var credentialID: String
+        var results: [ProviderFetchResult]
+    }
+
+    private static var snapshotURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Drizzle/latest-usage.json")
+    }
+
+    private var credentialID: String {
+        SHA256.hash(data: Data(String(reflecting: self.configuration.credentials).utf8))
+            .map { String(format: "%02x", $0) }.joined()
+    }
+
+    init() {
+        self.restoreSnapshot()
+    }
+
+    private func restoreSnapshot() {
+        guard let data = try? Data(contentsOf: Self.snapshotURL),
+              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
+              snapshot.credentialID == self.credentialID else { return }
+        for var result in snapshot.results where self.isEnabled(result.provider) {
+            result.message = "显示上次成功数据，等待更新"
+            result.retryable = true
+            self.results[result.provider] = result
+        }
+    }
+
+    private func saveSnapshot() {
+        let results = self.results.values.filter { !$0.windows.isEmpty || $0.balance != nil }
+            .map { result in
+                var result = result
+                result.message = nil
+                return result
+            }
+        guard let data = try? JSONEncoder().encode(
+            Snapshot(credentialID: self.credentialID, results: results)) else { return }
+        let url = Self.snapshotURL
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700])
+            try data.write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        } catch {
+            // A cache write must never interfere with live quota updates.
+        }
+    }
+
+    var hasRefreshFailures: Bool {
+        self.visibleProviders.contains { self.results[$0]?.retryable == true }
+    }
+
     var enabledProviders: Set<UsageProvider> {
         Set(self.configuration.enabledProviders.compactMap(UsageProvider.init(rawValue:)))
     }
@@ -111,7 +167,11 @@ final class DrizzleStore {
             self.generation += 1
             for task in self.inFlight.values { task.cancel() }
             self.inFlight.removeAll()
-            self.results.removeAll()
+            if previous.credentials != configuration.credentials {
+                self.results.removeAll()
+                self.restoreSnapshot()
+            }
+            self.results = self.results.filter { self.isEnabled($0.key) }
         }
         if case let .provider(id) = self.selection,
            let provider = id.firstPartyProvider, !self.isEnabled(provider) {
@@ -171,8 +231,17 @@ final class DrizzleStore {
             let fetched = await self.fetch(self.visibleProviders)
             if generation == self.generation {
                 for result in fetched where self.isEnabled(result.provider) {
-                    self.results[result.provider] = result
+                    if let message = result.message, result.windows.isEmpty, result.balance == nil,
+                       var previous = self.results[result.provider],
+                       !previous.windows.isEmpty || previous.balance != nil {
+                        previous.retryable = result.retryable
+                        previous.message = "更新失败，显示上次成功数据：\(message)"
+                        self.results[result.provider] = previous
+                    } else {
+                        self.results[result.provider] = result
+                    }
                 }
+                self.saveSnapshot()
                 self.onChange?()
             }
         } while self.refreshAgain

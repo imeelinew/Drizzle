@@ -14,7 +14,7 @@ enum WorkdayTickAppearance: String {
     case highContrast
 }
 
-enum UsageProvider: String, CaseIterable, Hashable {
+enum UsageProvider: String, CaseIterable, Hashable, Codable {
     case codex
     case claude
     case cursor
@@ -50,7 +50,7 @@ struct ProviderColor {
     }
 }
 
-struct RateWindow: Equatable {
+struct RateWindow: Equatable, Codable {
     let usedPercent: Double
     let windowMinutes: Int?
     let resetsAt: Date?

@@ -82,10 +82,10 @@ final class ProviderQuotaCard: NSView {
                                   font: self.footnote, color: .secondaryLabelColor, wraps: true)
             }
         }
-        if let message, metrics.isEmpty {
+        if let message {
             y += UsageMenuCardLayout.usageSectionTopPadding
             y += self.addText(message, x: x, y: y, width: width, font: self.footnote,
-                              color: .systemRed, wraps: true)
+                              color: metrics.isEmpty && balance == nil ? .systemRed : .secondaryLabelColor, wraps: true)
         }
         if !metrics.isEmpty {
             if balance != nil { y += UsageMenuCardLayout.headerContentSpacing }

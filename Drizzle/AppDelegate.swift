@@ -69,10 +69,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.refreshTask?.cancel()
         guard self.store.refreshInterval != .manual else { return }
         self.refreshTask = Task { [weak self] in
+            var failureCount = 0
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.store.refresh()
-                let seconds = self.store.refreshInterval.rawValue
+                failureCount = self.store.hasRefreshFailures ? min(failureCount + 1, 4) : 0
+                let retrySeconds = 5 * (1 << max(0, failureCount - 1))
+                let seconds = failureCount > 0
+                    ? min(self.store.refreshInterval.rawValue, retrySeconds)
+                    : self.store.refreshInterval.rawValue
                 try? await Task.sleep(for: .seconds(seconds))
             }
         }

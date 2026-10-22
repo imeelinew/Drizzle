@@ -40,8 +40,16 @@ xcodebuild \
 }
 
 print "Installing to $installed_app"
-rm -rf "$installed_app"
-ditto "$built_app" "$installed_app"
+stage_dir=$(mktemp -d "/Applications/.${app_name}-install.XXXXXX")
+trap 'rm -rf "$stage_dir"' EXIT
+ditto "$built_app" "$stage_dir/${app_name}.app"
+codesign --verify --all-architectures --deep --strict "$stage_dir/${app_name}.app"
+[[ ! -e "$installed_app" ]] || mv "$installed_app" "$stage_dir/Previous.app"
+if ! mv "$stage_dir/${app_name}.app" "$installed_app"; then
+    [[ ! -e "$stage_dir/Previous.app" ]] || mv "$stage_dir/Previous.app" "$installed_app"
+    exit 1
+fi
+codesign --verify --all-architectures --deep --strict "$installed_app"
 
 print "Launching $app_name"
 open "$installed_app"

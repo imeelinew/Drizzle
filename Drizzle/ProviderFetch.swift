@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-struct ProviderFetchResult {
+struct ProviderFetchResult: Codable {
     var provider: UsageProvider
     var plan: String?
     var windows: [RateWindow]
@@ -10,6 +10,7 @@ struct ProviderFetchResult {
     var updatedAt: Date
     var balance: String? = nil
     var balanceDetail: String? = nil
+    var retryable = false
 }
 
 enum ProviderFetch {
@@ -17,6 +18,8 @@ enum ProviderFetch {
     // Reuse connections without retaining responses, cookies, or credential caches.
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
+        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForResource = 45
         configuration.urlCache = nil
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpCookieStorage = nil
@@ -69,7 +72,7 @@ enum ProviderFetch {
                 message: nil,
                 updatedAt: .now)
         } catch {
-            return self.failure(.codex, error.localizedDescription)
+            return self.failure(.codex, error)
         }
     }
 
@@ -106,7 +109,7 @@ enum ProviderFetch {
                 message: nil,
                 updatedAt: .now)
         } catch {
-            return self.failure(.claude, error.localizedDescription)
+            return self.failure(.claude, error)
         }
     }
 
@@ -177,7 +180,7 @@ enum ProviderFetch {
                 message: nil,
                 updatedAt: .now)
         } catch {
-            return self.failure(.cursor, error.localizedDescription)
+            return self.failure(.cursor, error)
         }
     }
 
@@ -201,7 +204,7 @@ enum ProviderFetch {
             let plan = (data?["planName"] as? String) ?? (data?["level"] as? String)
             return ProviderFetchResult(provider: .zai, plan: plan, windows: windows, message: nil, updatedAt: .now)
         } catch {
-            return self.failure(.zai, error.localizedDescription)
+            return self.failure(.zai, error)
         }
     }
 
@@ -217,9 +220,15 @@ enum ProviderFetch {
         creditsRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         creditsRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         // The two endpoints supply independent parts of the current account state
-        let keyPayload = try? await self.json(request)
-        let creditsPayload = try? await self.json(creditsRequest)
+        var keyPayload: [String: Any]?
+        var creditsPayload: [String: Any]?
+        var requestError: Error?
+        do { keyPayload = try await self.json(request) }
+        catch { requestError = error }
+        do { creditsPayload = try await self.json(creditsRequest) }
+        catch { requestError = error }
         guard keyPayload != nil || creditsPayload != nil else {
+            if let requestError { return self.failure(.openrouter, requestError) }
             return self.failure(.openrouter, "OpenRouter 请求失败")
         }
         let data = keyPayload?["data"] as? [String: Any]
@@ -287,7 +296,7 @@ enum ProviderFetch {
                 provider: .opencodego, plan: "Go", windows: windows, windowTitles: titles,
                 message: nil, updatedAt: now)
         } catch {
-            return self.failure(.opencodego, error.localizedDescription)
+            return self.failure(.opencodego, error)
         }
     }
 
@@ -341,7 +350,7 @@ enum ProviderFetch {
                 provider: .opencodego, plan: "Go", windows: windows, windowTitles: titles,
                 message: nil, updatedAt: now)
         } catch {
-            return self.failure(.opencodego, error.localizedDescription)
+            return self.failure(.opencodego, error)
         }
     }
 
@@ -441,7 +450,7 @@ enum ProviderFetch {
                 balance: self.money(balance.total, currency: balance.currency),
                 balanceDetail: "充值 \(self.money(balance.paid, currency: balance.currency)) · 赠送 \(self.money(balance.granted, currency: balance.currency))")
         } catch {
-            return self.failure(.deepseek, error.localizedDescription)
+            return self.failure(.deepseek, error)
         }
     }
 
@@ -553,6 +562,20 @@ enum ProviderFetch {
             windowMinutes: minutes,
             resetsAt: reset.map { Date(timeIntervalSince1970: $0 / 1000) },
             resetDescription: nil)
+    }
+
+    private static func failure(_ provider: UsageProvider, _ error: Error) -> ProviderFetchResult {
+        var result = self.failure(provider, error.localizedDescription)
+        if let error = error as? URLError {
+            result.retryable = [
+                .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost,
+                .dnsLookupFailed, .notConnectedToInternet, .secureConnectionFailed,
+                .internationalRoamingOff, .dataNotAllowed,
+            ].contains(error.code)
+        } else if case let ProviderFetchError.http(status) = error {
+            result.retryable = status == 408 || status == 429 || (500...599).contains(status)
+        }
+        return result
     }
 
     private static func failure(_ provider: UsageProvider, _ message: String) -> ProviderFetchResult {

@@ -12,10 +12,10 @@ refreshIntervalSeconds = 60
 refreshOnOpen = true
 
 # 开启的供应商，空数组表示全部关闭
-enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek", "googleaipro"]
 
 # 菜单中供应商从上到下的顺序，未列出的已开启供应商按默认顺序排在后面
-providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek", "googleaipro"]
 
 [menuBar]
 # 菜单栏显示哪个供应商
@@ -23,6 +23,7 @@ provider = "codex"
 # 显示哪项额度：codex、claude、zai 用 session 或 weekly
 # cursor 用 total、cursor、thirdParty、grokBot，openrouter 用 keyLimit
 # opencodego 用 session、weekly、monthly，deepseek 用 balance
+# googleaipro 用 quota（最低剩余）、session 或 weekly
 metric = "session"
 # remaining 显示剩余，used 显示已使用
 percentMode = "remaining"

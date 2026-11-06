@@ -34,10 +34,10 @@ struct DrizzleConfiguration: Equatable, Sendable {
     var launchAtLogin = false
     var refreshIntervalSeconds = 60
     var refreshOnOpen = true
-    var enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+    var enabledProviders = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek", "googleaipro"]
     /// Switcher tab and quota card order. Providers left out keep their default position, so the
     /// list can be shortened or extended without listing every provider.
-    var providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek"]
+    var providerOrder = ["codex", "claude", "cursor", "zai", "openrouter", "opencodego", "deepseek", "googleaipro"]
     var menuBar = MenuBar()
     var credentials = Credentials()
 
@@ -204,6 +204,7 @@ extension DrizzleConfiguration {
         add("# 显示哪项额度：codex、claude、zai 用 session 或 weekly")
         add("# cursor 用 total、cursor、thirdParty、grokBot，openrouter 用 keyLimit")
         add("# opencodego 用 session、weekly、monthly，deepseek 用 balance")
+        add("# googleaipro 用 quota（最低剩余）、session 或 weekly")
         add("metric = \(Self.quoted(self.menuBar.metric))")
         add("# remaining 显示剩余，used 显示已使用")
         add("percentMode = \(Self.quoted(self.menuBar.percentMode))")

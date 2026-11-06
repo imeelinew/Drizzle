@@ -39,6 +39,8 @@
 		A20000000000000000000001 /* ProviderIcon-opencodego.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ProviderIcon-opencodego.svg */; };
 		A20000000000000000000003 /* ProviderIcon-deepseek.svg in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* ProviderIcon-deepseek.svg */; };
 		A30000000000000000000001 /* TOML.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* TOML.swift */; };
+		A40000000000000000000001 /* GoogleAIProFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40000000000000000000002 /* GoogleAIProFetch.swift */; };
+		A40000000000000000000003 /* ProviderIcon-googleaipro.svg in Resources */ = {isa = PBXBuildFile; fileRef = A40000000000000000000004 /* ProviderIcon-googleaipro.svg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -75,6 +77,8 @@
 		FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-openrouter.svg"; sourceTree = "<group>"; };
 		A20000000000000000000002 /* ProviderIcon-opencodego.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-opencodego.svg"; sourceTree = "<group>"; };
 		A20000000000000000000004 /* ProviderIcon-deepseek.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-deepseek.svg"; sourceTree = "<group>"; };
+		A40000000000000000000002 /* GoogleAIProFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAIProFetch.swift; sourceTree = "<group>"; };
+		A40000000000000000000004 /* ProviderIcon-googleaipro.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ProviderIcon-googleaipro.svg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,7 @@
 				1FD66369594E7E85450AD3B0 /* Localizable.strings */,
 				B194E3745E2C3E95856957B9 /* ProviderBrandIcon.swift */,
 				D36BCCEB4227F188DBA0CCA5 /* ProviderFetch.swift */,
+				A40000000000000000000002 /* GoogleAIProFetch.swift */,
 				12248976C027919AD38F683B /* ProviderPace.swift */,
 				712D78EF24925B8802A5AC2D /* ProviderSwitcherButtons.swift */,
 				AC8504334CEB7370F26F37C0 /* ProviderSwitcherView.swift */,
@@ -136,6 +141,7 @@
 				FF742F1069CFFD268A592BD1 /* ProviderIcon-openrouter.svg */,
 				6C8949282BD76FA6EE9275F5 /* ProviderIcon-zai.svg */,
 				A20000000000000000000004 /* ProviderIcon-deepseek.svg */,
+				A40000000000000000000004 /* ProviderIcon-googleaipro.svg */,
 				A20000000000000000000002 /* ProviderIcon-opencodego.svg */,
 			);
 			path = Resources;
@@ -228,6 +234,7 @@
 				F5A470CC8463E92B47F0AC3F /* ProviderIcon-openrouter.svg in Resources */,
 				0E3549EB1D448FF6F3A137B0 /* ProviderIcon-zai.svg in Resources */,
 				A20000000000000000000003 /* ProviderIcon-deepseek.svg in Resources */,
+				A40000000000000000000003 /* ProviderIcon-googleaipro.svg in Resources */,
 				A20000000000000000000001 /* ProviderIcon-opencodego.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -253,6 +260,7 @@
 				940BE6957BAE4AF09F2AC848 /* QuotaMenu.swift in Sources */,
 				8D1D22DBE2ABC52085E878A3 /* DrizzleConfiguration.swift in Sources */,
 				A30000000000000000000001 /* TOML.swift in Sources */,
+				A40000000000000000000001 /* GoogleAIProFetch.swift in Sources */,
 				DE15730C91EFE5F6881DBDC4 /* UsageFormatter.swift in Sources */,
 				443BE169D9FA406C4D14AE60 /* UsageMenuCardLayout.swift in Sources */,
 				D9F27CECDFCE56646B6D0968 /* UsageMenuCardMetric.swift in Sources */,

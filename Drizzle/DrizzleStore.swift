@@ -31,6 +31,7 @@ enum MenuBarMetric: String, Identifiable {
     case keyLimit
     case monthly
     case balance
+    case quota
 
     var id: String { self.rawValue }
 
@@ -45,6 +46,7 @@ enum MenuBarMetric: String, Identifiable {
         case .keyLimit: "密钥额度"
         case .monthly: "月额度"
         case .balance: "余额"
+        case .quota: "最低剩余额度"
         }
     }
 
@@ -55,6 +57,7 @@ enum MenuBarMetric: String, Identifiable {
         case .openrouter: [.keyLimit]
         case .opencodego: [.session, .weekly, .monthly]
         case .deepseek: [.balance]
+        case .googleaipro: [.quota, .session, .weekly]
         }
     }
 }
@@ -276,9 +279,9 @@ final class DrizzleStore {
         let window: RateWindow?
         switch self.menuBarMetric {
         case .session:
-            window = result.windows.first { $0.windowMinutes == 300 }
+            window = result.windows.filter { $0.windowMinutes == 300 }.max { $0.usedPercent < $1.usedPercent }
         case .weekly:
-            window = result.windows.first { $0.windowMinutes == 7 * 24 * 60 }
+            window = result.windows.filter { $0.windowMinutes == 7 * 24 * 60 }.max { $0.usedPercent < $1.usedPercent }
         case .monthly:
             window = result.windows.first { $0.windowMinutes == 30 * 24 * 60 }
         case .balance:
@@ -293,6 +296,8 @@ final class DrizzleStore {
             }
             window = result.windowTitles.firstIndex(of: title)
                 .flatMap { result.windows.indices.contains($0) ? result.windows[$0] : nil }
+        case .quota:
+            window = result.windows.max { $0.usedPercent < $1.usedPercent }
         case .keyLimit:
             window = result.windows.first
         }

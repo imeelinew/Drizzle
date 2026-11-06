@@ -232,6 +232,7 @@ final class ProviderQuotaCard: NSView {
     }
 
     private static func paceDetail(provider: UsageProvider, window: RateWindow, isSession: Bool) -> PaceBits? {
+        guard provider != .googleaipro else { return nil }
         let detail: UsagePaceText.WeeklyDetail?
         if isSession {
             detail = UsagePaceText.sessionDetail(provider: provider, window: window)

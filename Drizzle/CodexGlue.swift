@@ -22,6 +22,7 @@ enum UsageProvider: String, CaseIterable, Hashable, Codable {
     case openrouter
     case opencodego
     case deepseek
+    case googleaipro
 
     var instanceID: ProviderInstanceID {
         ProviderInstanceID(firstPartyProvider: self)
@@ -178,6 +179,15 @@ enum ProviderDescriptorRegistry {
                     secondary: .weekly,
                     sessionPaceWindowRule: .windowDuration(minutes: 300),
                     allowsEstimatedUsage: false))
+        case .googleaipro:
+            Descriptor(
+                metadata: ProviderMetadata(
+                    displayName: "Google AI Pro",
+                    sessionLabel: "Gemini",
+                    weeklyLabel: "Claude/GPT",
+                    iconResourceName: "ProviderIcon-googleaipro",
+                    color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
+                pace: .unsupported)
         case .deepseek:
             Descriptor(
                 metadata: ProviderMetadata(

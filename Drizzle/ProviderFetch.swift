@@ -30,6 +30,7 @@ enum ProviderFetch {
 
     static func fetch(_ provider: UsageProvider, credentials: DrizzleConfiguration.Credentials) async -> ProviderFetchResult {
         switch provider {
+        case .googleaipro: await GoogleAIProFetch.fetch()
         case .codex: await self.codex()
         case .claude: await self.claude()
         case .cursor: await self.cursor(cookie: credentials.cursorCookie)

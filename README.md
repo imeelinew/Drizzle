@@ -1,6 +1,6 @@
 # Drizzle
 
-Drizzle is a lightweight macOS menu bar quota viewer supporting Codex, Claude, Cursor, z.ai, OpenRouter, OpenCode Go, and DeepSeek.
+Drizzle is a lightweight macOS menu bar quota viewer supporting Codex, Claude, Cursor, z.ai, OpenRouter, OpenCode Go, DeepSeek, and Google AI Pro.
 
 ## Build locally
 
@@ -45,6 +45,15 @@ The Console path reads live account quotas. When the API does not provide a mont
 | `openrouter` | `keyLimit` |
 | `opencodego` | `session`, `weekly`, `monthly` |
 | `deepseek` | `balance` |
+| `googleaipro` | `quota`, `session`, `weekly` |
+
+Google AI Pro coding quotas are adapted from CodexBar `b9ba2da9a`'s Antigravity implementation. Google has migrated consumer AI Pro / Ultra accounts away from Gemini CLI OAuth. This provider shows **Antigravity coding quotas**, excluding Gemini web chat, image, and video generation limits. See [Google's migration notice](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals).
+
+- Add `"googleaipro"` to `enabledProviders`. New configurations enable it by default; existing configurations keep their enabled provider list.
+- Open the signed-in Antigravity app, or install Antigravity CLI and run `agy` in a terminal to sign in. CLI 1.1.11 or later supports `agy -p /usage --output-format json`, so the desktop app can remain closed.
+- Displays the returned model groups, five-hour and weekly quotas, and reset countdowns. Older local interfaces expose per-model quotas instead. Disabled or unknown quotas are omitted rather than displayed as 100% remaining.
+- Set `menuBar.provider = "googleaipro"` and `menuBar.metric = "quota"` to show the lowest remaining percentage across all returned quotas. `session` and `weekly` select the lowest remaining percentage within that cadence; unavailable cadences show no value. `percentMode = "used"` displays the corresponding used percentage.
+- CLI queries only request usage reports and send no model prompts. Passive refreshes do not open browser sign-in or update the CLI. Google cookies and OAuth credentials are not stored in Drizzle configuration. `ANTIGRAVITY_CLI_PATH` can specify the CLI executable; invalid overrides produce an error.
 
 Configuration uses TOML and supports `#` comments, `[sections]`, multiline arrays, and trailing commas. Strings can use `"…"`, `'…'`, or `"""…"""` (useful when pasting cURL). The parser implements only the syntax needed for configuration; inline tables, arrays of tables, floating-point values, and dates cause an error with a line number. Missing fields use defaults. Unknown fields are ignored and reported with their line numbers in the menu. Invalid types or values prevent loading; if a runtime edit is invalid, the last valid configuration remains active and the menu shows the error until the file is corrected and saved.
 

@@ -124,6 +124,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 showsIcons: true,
                 iconProvider: { ProviderBrandIcon.image(for: $0) ?? NSImage() },
                 weeklyRemainingProvider: { [weak self] provider in
+                    if provider == .googleaipro {
+                        return self?.store.windows(for: provider).map(\.remainingPercent).min()
+                    }
                     if provider == .cursor {
                         return self?.store.cursorAutoWindow?.remainingPercent
                     }

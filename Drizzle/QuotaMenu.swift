@@ -253,3 +253,42 @@ final class ProviderQuotaCard: NSView {
             paceOnTop: window.usedPercent <= detail.expectedUsedPercent)
     }
 }
+
+/// Bound quota content to the current screen while leaving menu navigation visible.
+final class QuotaMenuViewport: NSScrollView {
+    private final class Document: NSView {
+        override var isFlipped: Bool { true }
+    }
+
+    var scrollOffset: CGFloat { self.contentView.bounds.minY }
+
+    init(cards: [NSView], maxHeight: CGFloat, scrollOffset: CGFloat) {
+        let document = Document(frame: .zero)
+        var y: CGFloat = 0
+        for (index, card) in cards.enumerated() {
+            if index > 0 {
+                let divider = NSBox(frame: NSRect(x: 16, y: y + 4, width: 278, height: 1))
+                divider.boxType = .separator
+                document.addSubview(divider)
+                y += 9
+            }
+            card.frame.origin = NSPoint(x: 0, y: y)
+            document.addSubview(card)
+            y += card.frame.height
+        }
+        document.frame = NSRect(x: 0, y: 0, width: 310, height: y)
+        super.init(frame: NSRect(x: 0, y: 0, width: 310, height: min(y, maxHeight)))
+        self.borderType = .noBorder
+        self.drawsBackground = false
+        self.hasVerticalScroller = y > maxHeight
+        self.hasHorizontalScroller = false
+        self.scrollerStyle = .overlay
+        self.autohidesScrollers = true
+        self.documentView = document
+        self.contentView.scroll(to: NSPoint(x: 0, y: min(scrollOffset, max(0, y - self.frame.height))))
+        self.reflectScrolledClipView(self.contentView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+}

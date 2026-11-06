@@ -612,7 +612,8 @@ final class ProviderSwitcherView: NSView {
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: self.preferredWidth, height: self.frame.size.height)
+        NSSize(width: self.preferredWidth, height: self.rowHeight * CGFloat(self.rowCount)
+            + self.rowSpacing * CGFloat(max(0, self.rowCount - 1)))
     }
 
     func updateSelection(_ selection: ProviderSwitcherSelection) {
@@ -773,7 +774,7 @@ final class ProviderSwitcherView: NSView {
             ? (maxAllowedWidth.truncatingRemainder(dividingBy: 2) == 0 ? maxAllowedWidth : maxAllowedWidth - 1)
             : 0
         let finalWidth: CGFloat = if evenMaxAllowed > 0 {
-            min(evenMaxDesired, evenMaxAllowed)
+            self.stackedIcons ? evenMaxAllowed : min(evenMaxDesired, evenMaxAllowed)
         } else {
             evenMaxDesired
         }
@@ -809,7 +810,10 @@ final class ProviderSwitcherView: NSView {
     }
 
     private static func switcherTitle(for provider: UsageProvider) -> String {
-        ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        switch provider {
+        case .googleaipro: "Google AI"
+        default: ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        }
     }
 }
 

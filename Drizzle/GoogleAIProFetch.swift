@@ -147,9 +147,9 @@ enum GoogleAIProFetch {
         guard validCode(json) else { throw FetchError.unavailable("Google AI Pro 额度暂不可用") }
         let payload = json["response"] as? [String: Any] ?? json["summary"] as? [String: Any] ?? json
         let groups = payload["groups"] as? [[String: Any]] ?? []
-        var rows: [(String, RateWindow)] = []
+        var rows: [(String, RateWindow, Int)] = []
         let sortedGroups = groups.sorted { groupRank($0) < groupRank($1) }
-        for group in sortedGroups {
+        for (groupIndex, group) in sortedGroups.enumerated() {
             let name = text(group, "displayName", "display_name", "name") ?? "Quota"
             for bucket in group["buckets"] as? [[String: Any]] ?? [] {
                 let nested = bucket["remaining"] as? [String: Any]
@@ -163,26 +163,30 @@ enum GoogleAIProFetch {
                     .lowercased().replacingOccurrences(of: "_", with: "-")
                 let minutes: Int? = ["session", "5h", "5-hour", "five-hour", "five hour"].contains(where: { cadence.contains($0) })
                     ? 300 : cadence.contains("weekly") ? 10080 : nil
-                let title = name + " · " + (minutes == 300 ? "5 小时" : minutes == 10080 ? "周额度" : label)
+                let title = displayGroup(name) + " " + (minutes == 300 ? "5-hour" : minutes == 10080 ? "weekly" : label)
                 rows.append((title, RateWindow(
                     usedPercent: 100 - min(1, max(0, fraction)) * 100,
                     windowMinutes: minutes, resetsAt: date(text(bucket, "resetTime", "reset_time")),
-                    resetDescription: nil)))
+                    resetDescription: nil), groupIndex))
             }
         }
         guard !rows.isEmpty else { throw FetchError.unavailable("Google AI Pro 暂未提供可用额度，请检查 Antigravity 登录与订阅") }
         // Keep the source's model groups together, with the shorter cadence first.
-        let groupOrder = sortedGroups.map { text($0, "displayName", "display_name", "name") ?? "Quota" }
         rows.sort { lhs, rhs in
-            let leftGroup = groupOrder.firstIndex { lhs.0.hasPrefix($0 + " · ") } ?? Int.max
-            let rightGroup = groupOrder.firstIndex { rhs.0.hasPrefix($0 + " · ") } ?? Int.max
-            if leftGroup != rightGroup { return leftGroup < rightGroup }
+            if lhs.2 != rhs.2 { return lhs.2 < rhs.2 }
             let leftMinutes = lhs.1.windowMinutes ?? Int.max
             let rightMinutes = rhs.1.windowMinutes ?? Int.max
             if leftMinutes != rightMinutes { return leftMinutes < rightMinutes }
             return lhs.0 < rhs.0
         }
         return ProviderFetchResult(provider: .googleaipro, plan: plan, windows: rows.map(\.1), windowTitles: rows.map(\.0), message: nil, updatedAt: .now)
+    }
+
+    private static func displayGroup(_ name: String) -> String {
+        let lower = name.lowercased()
+        if lower.contains("gemini"), !name.contains(where: \.isNumber) { return "Gemini" }
+        if lower.contains("claude") || lower.contains("gpt") { return "Claude/GPT" }
+        return name
     }
 
     private static func groupRank(_ group: [String: Any]) -> String {

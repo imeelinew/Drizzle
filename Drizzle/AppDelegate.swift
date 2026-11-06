@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let menu = NSMenu()
     private var switcher: ProviderSwitcherView?
     private var cardItems: [NSMenuItem] = []
+    private var cardSelection: ProviderSwitcherSelection?
     private var actionsSeparator: NSMenuItem?
     private var isMenuOpen = false
     private var configuration: ConfigurationController!
@@ -175,13 +176,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func rebuildCards() {
         guard self.isMenuOpen else { return }
+        let previousViewport = self.cardItems.first?.view as? QuotaMenuViewport
+        let scrollOffset = self.cardSelection == self.store.selection ? previousViewport?.scrollOffset ?? 0 : 0
+        self.cardSelection = self.store.selection
         for item in self.cardItems {
             item.view = nil
             self.menu.removeItem(item)
         }
         self.cardItems.removeAll()
         guard let actionsSeparator else { return }
-        var index = self.menu.index(of: actionsSeparator)
+        let index = self.menu.index(of: actionsSeparator)
         let providers: [UsageProvider]
         switch self.store.selection {
         case .overview:
@@ -196,7 +200,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.cardItems.append(item)
             return
         }
-        for (offset, provider) in providers.enumerated() {
+        var cards: [NSView] = []
+        for provider in providers {
             let result = self.store.results[provider]
             let card = ProviderQuotaCard(
                 provider: provider,
@@ -207,20 +212,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 updatedAt: result?.updatedAt,
                 balance: result?.balance,
                 balanceDetail: result?.balanceDetail)
-            let item = NSMenuItem()
-            item.title = ""
-            item.view = card
-            item.isEnabled = false
-            self.menu.insertItem(item, at: index)
-            self.cardItems.append(item)
-            index += 1
-            if offset < providers.count - 1 {
-                let divider = NSMenuItem.separator()
-                self.menu.insertItem(divider, at: index)
-                self.cardItems.append(divider)
-                index += 1
-            }
+            cards.append(card)
         }
+        // Keep the switcher and actions outside the scrollable quota content. A tall
+        // overview must not invoke NSMenu's edge scroller over the provider buttons.
+        let screenHeight = self.statusItem.button?.window?.screen?.visibleFrame.height ?? 800
+        let chromeHeight = self.menu.items.reduce(CGFloat(0)) { height, item in
+            height + (item.view?.frame.height ?? (item.isSeparatorItem ? 12 : 22))
+        }
+        let viewport = QuotaMenuViewport(
+            cards: cards, maxHeight: max(120, screenHeight - chromeHeight - 48), scrollOffset: scrollOffset)
+        let item = NSMenuItem()
+        item.title = ""
+        item.view = viewport
+        item.isEnabled = false
+        self.menu.insertItem(item, at: index)
+        self.cardItems.append(item)
     }
 
     private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
